@@ -37,6 +37,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -53,16 +54,22 @@ function AuthPage() {
       toast.success("Welcome back, Officer!");
       navigate({ to: "/gov" });
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: { data: { full_name: fullName.trim() || undefined } },
       });
       setLoading(false);
       if (error) {
         toast.error(error.message);
         return;
       }
+      if (data.user && !data.session) {
+        toast.success("Account created! Check your email to confirm, then sign in.");
+        setMode("in");
+        return;
+      }
+      // Session exists (email confirmation disabled): trigger already granted roles.
       toast.success("Account created! You have been granted demo officer permissions.");
       navigate({ to: "/gov" });
     }
@@ -146,6 +153,24 @@ function AuthPage() {
 
         {/* Credentials Form */}
         <form onSubmit={submit} className="space-y-4">
+          {mode === "up" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Full Name</Label>
+              <div className="relative">
+                <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  required
+                  minLength={3}
+                  placeholder="Officer full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="pl-9 h-10 text-xs bg-background"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label className="text-xs">Official Email</Label>
             <div className="relative">
@@ -178,7 +203,11 @@ function AuthPage() {
           </div>
 
           <Button type="submit" className="w-full h-10 text-xs font-semibold" disabled={loading}>
-            {loading ? "Please wait..." : mode === "in" ? "Sign In to Gov Portal" : "Create Account"}
+            {loading
+              ? "Please wait..."
+              : mode === "in"
+                ? "Sign In to Gov Portal"
+                : "Submit Registration"}
           </Button>
         </form>
 

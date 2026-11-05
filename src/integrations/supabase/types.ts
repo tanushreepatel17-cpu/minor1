@@ -73,6 +73,54 @@ export type Database = {
           },
         ]
       }
+      citizen_profiles: {
+        Row: {
+          age: number
+          annual_income: number
+          bpl: boolean
+          created_at: string
+          disability: boolean
+          full_name: string
+          gender: string
+          id: string
+          occupation: string
+          residence: string
+          social_category: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          age: number
+          annual_income: number
+          bpl?: boolean
+          created_at?: string
+          disability?: boolean
+          full_name: string
+          gender: string
+          id?: string
+          occupation: string
+          residence: string
+          social_category: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          age?: number
+          annual_income?: number
+          bpl?: boolean
+          created_at?: string
+          disability?: boolean
+          full_name?: string
+          gender?: string
+          id?: string
+          occupation?: string
+          residence?: string
+          social_category?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_events: {
         Row: {
           action: string
@@ -397,6 +445,20 @@ export type Database = {
         Returns: boolean
       }
       is_gov: { Args: { _user_id: string }; Returns: boolean }
+      register_citizen_profile: {
+        Args: {
+          p_age: number
+          p_annual_income: number
+          p_bpl?: boolean
+          p_disability?: boolean
+          p_full_name: string
+          p_gender: string
+          p_occupation: string
+          p_residence: string
+          p_social_category: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "gov_officer" | "citizen"

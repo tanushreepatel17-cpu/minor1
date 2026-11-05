@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { schemesQuery } from "@/lib/queries";
 import { matchScheme, type Profile } from "@/lib/eligibility";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,15 @@ export const Route = createFileRoute("/eligibility")({
 });
 
 const sel = "h-9 w-full rounded-lg border bg-card px-3 text-xs focus:ring-1 focus:ring-primary";
+
+type FieldKey =
+  | "fullName"
+  | "age"
+  | "gender"
+  | "annualIncome"
+  | "socialCategory"
+  | "occupation"
+  | "residence";
 
 const PRESETS: { label: string; profile: Profile }[] = [
   {
@@ -111,8 +122,72 @@ function Eligibility() {
     disability: false,
   });
 
+  const [fullName, setFullName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const resultsRef = useRef<HTMLElement | null>(null);
+
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }));
   const num = (v: string) => (v === "" ? null : Number(v));
+
+  const validate = () => {
+    const e: Partial<Record<FieldKey, string>> = {};
+    if (!fullName.trim()) e.fullName = "Please enter your full name.";
+    else if (fullName.trim().length < 3) e.fullName = "Name must be at least 3 characters.";
+    if (p.age == null || Number.isNaN(p.age)) e.age = "Age is required.";
+    else if (p.age < 0 || p.age > 120) e.age = "Age must be between 0 and 120.";
+    if (!p.gender) e.gender = "Please select a gender.";
+    if (p.annualIncome == null || Number.isNaN(p.annualIncome) || p.annualIncome < 0)
+      e.annualIncome = "Enter your family annual income (₹).";
+    if (!p.socialCategory) e.socialCategory = "Please select a social category.";
+    if (!p.occupation) e.occupation = "Please select an occupation.";
+    if (!p.residence) e.residence = "Please select your area of residence.";
+    return e;
+  };
+
+  const saveProfile = async () => {
+    const { error } = await supabase.rpc("register_citizen_profile", {
+      p_full_name: fullName.trim(),
+      p_age: p.age as number,
+      p_gender: p.gender as string,
+      p_annual_income: p.annualIncome as number,
+      p_social_category: p.socialCategory as string,
+      p_occupation: p.occupation as string,
+      p_residence: p.residence as string,
+      p_bpl: p.bpl,
+      p_disability: p.disability,
+    });
+    if (error) throw new Error(error.message);
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return; // prevent duplicate submissions
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error("Please correct the highlighted fields.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await saveProfile();
+      setSubmitted(true);
+      toast.success(
+        matches.length
+          ? `Registration complete! We found ${matches.length} schemes for your profile.`
+          : "Registration complete! Your profile has been saved.",
+      );
+      requestAnimationFrame(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const resetProfile = () => {
     setP({
@@ -142,6 +217,17 @@ function Eligibility() {
     p.disability,
   ].filter(Boolean).length;
 
+  const profileChips = [
+    p.age != null ? `Age ${p.age}` : null,
+    p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : null,
+    p.annualIncome != null ? `₹${p.annualIncome.toLocaleString("en-IN")} / year` : null,
+    p.socialCategory ? p.socialCategory.toUpperCase() : null,
+    p.occupation ? p.occupation.charAt(0).toUpperCase() + p.occupation.slice(1) : null,
+    p.residence ? p.residence.charAt(0).toUpperCase() + p.residence.slice(1) : null,
+    p.bpl ? "BPL / Ration Card" : null,
+    p.disability ? "PwD" : null,
+  ].filter((value): value is string => Boolean(value));
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
       {/* Title */}
@@ -154,7 +240,7 @@ function Eligibility() {
           Find Schemes For You
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your profile details below to narrow down 42 schemes. No personal data is stored or submitted.
+          Enter your details to register and get personalised scheme matches. Your profile is saved securely to your account.
         </p>
 
         {/* Quick Presets */}
@@ -182,7 +268,7 @@ function Eligibility() {
 
       <div className="grid gap-8 lg:grid-cols-[340px_1fr]">
         {/* Profile Controls Sidebar */}
-        <aside className="h-fit space-y-5 rounded-2xl border bg-card p-5 shadow-card lg:sticky lg:top-24">
+        <form onSubmit={submit} className="h-fit space-y-5 rounded-2xl border bg-card p-5 shadow-card lg:sticky lg:top-24">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="text-sm font-bold flex items-center gap-1.5">
               <SlidersHorizontal className="h-4 w-4 text-primary" />
@@ -193,22 +279,34 @@ function Eligibility() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Full Name *</Label>
+            <Input
+              placeholder="e.g. Ananya Sharma"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className={`h-9 text-xs bg-background ${errors.fullName ? "border-destructive" : ""}`}
+            />
+            {errors.fullName && <p className="text-[11px] text-destructive">{errors.fullName}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="space-y-1">
-              <Label className="text-xs">Age</Label>
+              <Label className="text-xs">Age *</Label>
               <Input
                 type="number"
                 min={0}
                 placeholder="e.g. 24"
                 value={p.age ?? ""}
                 onChange={(e) => set("age", num(e.target.value))}
-                className="h-9 text-xs bg-background"
+                className={`h-9 text-xs bg-background ${errors.age ? "border-destructive" : ""}`}
               />
+              {errors.age && <p className="text-[11px] text-destructive">{errors.age}</p>}
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Gender</Label>
+              <Label className="text-xs">Gender *</Label>
               <select
-                className={sel}
+                className={`${sel} ${errors.gender ? "border-destructive" : ""}`}
                 value={p.gender}
                 onChange={(e) => set("gender", e.target.value as Profile["gender"])}
               >
@@ -217,25 +315,29 @@ function Eligibility() {
                 <option value="male">Male</option>
                 <option value="transgender">Transgender</option>
               </select>
+              {errors.gender && <p className="text-[11px] text-destructive">{errors.gender}</p>}
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Family Annual Income (₹)</Label>
+            <Label className="text-xs">Family Annual Income (₹) *</Label>
             <Input
               type="number"
               min={0}
               placeholder="e.g. 300000"
               value={p.annualIncome ?? ""}
               onChange={(e) => set("annualIncome", num(e.target.value))}
-              className="h-9 text-xs bg-background"
+              className={`h-9 text-xs bg-background ${errors.annualIncome ? "border-destructive" : ""}`}
             />
+            {errors.annualIncome && (
+              <p className="text-[11px] text-destructive">{errors.annualIncome}</p>
+            )}
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Social Category</Label>
+            <Label className="text-xs">Social Category *</Label>
             <select
-              className={sel}
+              className={`${sel} ${errors.socialCategory ? "border-destructive" : ""}`}
               value={p.socialCategory}
               onChange={(e) => set("socialCategory", e.target.value as Profile["socialCategory"])}
             >
@@ -246,12 +348,15 @@ function Eligibility() {
               <option value="obc">OBC (Other Backward Class)</option>
               <option value="minority">Minority</option>
             </select>
+            {errors.socialCategory && (
+              <p className="text-[11px] text-destructive">{errors.socialCategory}</p>
+            )}
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Occupation / Profession</Label>
+            <Label className="text-xs">Occupation / Profession *</Label>
             <select
-              className={sel}
+              className={`${sel} ${errors.occupation ? "border-destructive" : ""}`}
               value={p.occupation}
               onChange={(e) => set("occupation", e.target.value as Profile["occupation"])}
             >
@@ -263,12 +368,13 @@ function Eligibility() {
               <option value="unemployed">Unemployed / Job Seeker</option>
               <option value="other">Other</option>
             </select>
+            {errors.occupation && <p className="text-[11px] text-destructive">{errors.occupation}</p>}
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Area of Residence</Label>
+            <Label className="text-xs">Area of Residence *</Label>
             <select
-              className={sel}
+              className={`${sel} ${errors.residence ? "border-destructive" : ""}`}
               value={p.residence}
               onChange={(e) => set("residence", e.target.value as Profile["residence"])}
             >
@@ -276,6 +382,7 @@ function Eligibility() {
               <option value="rural">Rural (Village)</option>
               <option value="urban">Urban (City / Town)</option>
             </select>
+            {errors.residence && <p className="text-[11px] text-destructive">{errors.residence}</p>}
           </div>
 
           <div className="pt-2 border-t space-y-3">
@@ -289,23 +396,74 @@ function Eligibility() {
               <Switch checked={p.disability} onCheckedChange={(v) => set("disability", v)} />
             </label>
           </div>
-        </aside>
+
+          {submitted ? (
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-2">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" /> Registration Complete
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Your profile has been saved. We found{" "}
+                <span className="font-bold text-foreground">{matches.length}</span> schemes that
+                match your profile.
+              </p>
+              <div className="grid gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full text-xs h-8 gap-1.5"
+                  onClick={() =>
+                    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                >
+                  View Recommended Schemes <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button asChild size="sm" variant="outline" className="w-full text-xs h-8 gap-1.5">
+                  <Link to="/assistant">
+                    Continue to Sahayak Assistant <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="submit" className="w-full h-10 text-xs font-semibold" disabled={submitting}>
+              {submitting ? "Saving your profile..." : "Submit Registration"}
+            </Button>
+          )}
+        </form>
 
         {/* Results Stream */}
-        <section className="space-y-6">
+        <section ref={resultsRef} id="recommended-schemes" className="space-y-6 scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
             <div>
               <p className="text-lg font-bold text-foreground">
                 <span className="font-display text-3xl font-extrabold text-primary mr-2">
                   {matches.length}
                 </span>
-                Potential Matches Identified
+                {submitted ? "Recommended Schemes for You" : "Potential Matches Identified"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {filledCount > 0
-                  ? `Filtered across all 42 schemes based on your profile inputs.`
-                  : `Showing all 42 schemes — adjust profile parameters on the left to filter.`}
+                {submitted
+                  ? `Showing all ${matches.length} schemes that match your profile.`
+                  : filledCount > 0
+                    ? `Filtered from ${data.length} published schemes based on your profile inputs.`
+                    : `Showing ${matches.length} open schemes — adjust profile parameters on the left to filter.`}
               </p>
+              {submitted && profileChips.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Your profile:
+                  </span>
+                  {profileChips.map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs h-8">
