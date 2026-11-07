@@ -28,7 +28,7 @@ Use this file as a copy-paste brief when handing the project to another develope
 > - `/schemes` — directory of all 3,540 schemes with search and filters
 > - `/schemes/$slug` — scheme details, including a full **Eligibility Requirements** section and a link to `docs/scheme-requirements.md`
 > - `/eligibility` — citizen registration and eligibility matcher. Users fill age, gender, income, category, occupation, residence, BPL, and PwD, then press **Analyze My Eligibility** to see matching schemes without saving. **Save Profile & Register** stores the profile through the `register_citizen_profile` RPC.
-> - `/auth` — government officer sign-in. Email confirmation is enabled, so new accounts must confirm their email. Use **1-Click Demo Officer Login** for evaluation:
+> - `/auth` — government officer sign-in. New officer accounts are created through the service-role Admin API with `email_confirm: true`, so **no confirmation email is sent** and sign-up signs you in immediately (this avoids Supabase's built-in email rate limit). Use **1-Click Demo Officer Login** for evaluation:
 >   - Email: `demo.officer@nagsi.gov.in`
 >   - Password: `DemoOfficer@2026`
 > - `/gov` — officer dashboard (requires `gov_officer` role)
@@ -59,3 +59,4 @@ Use this file as a copy-paste brief when handing the project to another develope
 | `/eligibility` → fill profile → **Analyze My Eligibility** | Scrolls to **Recommended Schemes for You** and lists matches in batches of 24 |
 | `/eligibility` → **Save Profile & Register** | Saves the profile and shows the registration success panel |
 | `/auth` → **1-Click Demo Officer Login** | Signs in and opens `/gov` |
+| `/auth` → **Register demo account** → submit | Account is created and signed in immediately; no confirmation email, no rate limit |

@@ -41,41 +41,78 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const postJson = async (url: string, body: unknown) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = (await res.json().catch(() => ({}))) as { error?: string; status?: string };
+    return { ok: res.ok, ...payload };
+  };
+
+  /**
+   * Sign in and, if the account is still unconfirmed (because Supabase's
+   * built-in email service was rate limited), confirm it server-side and retry
+   * once. No confirmation email is sent, so the rate limit is never hit.
+   */
+  const signInOfficer = async () => {
+    const first = await supabase.auth.signInWithPassword({ email, password });
+    if (!first.error || !/email not confirmed/i.test(first.error.message)) {
+      return first;
+    }
+    await postJson("/api/auth/confirm", { email }).catch(() => undefined);
+    return supabase.auth.signInWithPassword({ email, password });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    if (mode === "in") {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
-      if (error || !data.session) {
-        toast.error(
-          error?.message === "Invalid login credentials"
-            ? "Invalid email or password. Use the 1-Click Demo Officer Login, or register and confirm your email first."
-            : (error?.message ?? "Sign in failed. Please try again."),
-        );
+    try {
+      if (mode === "in") {
+        const { data, error } = await signInOfficer();
+        if (error || !data.session) {
+          toast.error(
+            error?.message === "Invalid login credentials"
+              ? "Invalid email or password. Use the 1-Click Demo Officer Login, or register an officer account."
+              : (error?.message ?? "Sign in failed. Please try again."),
+          );
+          return;
+        }
+        toast.success("Welcome back, Officer!");
+        navigate({ to: "/gov" });
         return;
       }
-      toast.success("Welcome back, Officer!");
-      navigate({ to: "/gov" });
-    } else {
-      const { data, error } = await supabase.auth.signUp({
+
+      // Registration is handled by a server route that creates the account with
+      // `email_confirm: true`, so no confirmation email is sent or needed.
+      const registration = await postJson("/api/auth/register", {
         email,
         password,
-        options: { data: { full_name: fullName.trim() || undefined } },
+        fullName: fullName.trim(),
       });
-      setLoading(false);
-      if (error) {
-        toast.error(error.message);
+      if (!registration.ok) {
+        toast.error(registration.error ?? "Could not create the account. Please try again.");
         return;
       }
-      if (data.user && !data.session) {
-        toast.success("Account created! Check your email to confirm, then sign in.");
+
+      const { data, error } = await signInOfficer();
+      if (error || !data.session) {
+        toast.error(
+          /invalid login/i.test(error?.message ?? "")
+            ? "This email is already registered with a different password. Switch to Sign In and use the original password."
+            : (error?.message ?? "Account created, but automatic sign-in failed. Please use Sign In."),
+        );
         setMode("in");
         return;
       }
-      // Session exists (email confirmation disabled): trigger already granted roles.
-      toast.success("Account created! You have been granted demo officer permissions.");
+
+      toast.success("Officer account ready — you are signed in.");
       navigate({ to: "/gov" });
+    } catch {
+      toast.error("Network problem. Check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -213,8 +250,8 @@ function AuthPage() {
 
           {mode === "up" && (
             <p className="rounded-lg border bg-muted/40 p-2.5 text-[11px] leading-relaxed text-muted-foreground">
-              New officer accounts must confirm their email before the first sign-in. For instant
-              evaluation access, use the 1-Click Demo Officer Login above.
+              Accounts are activated instantly — no confirmation email is sent or required. You
+              will be signed in automatically after registering.
             </p>
           )}
         </form>

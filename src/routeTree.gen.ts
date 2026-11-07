@@ -21,6 +21,8 @@ import { Route as SchemesIndexRouteImport } from './routes/schemes.index'
 import { Route as SchemesSlugRouteImport } from './routes/schemes.$slug'
 import { Route as AuthenticatedGovIndexRouteImport } from './routes/_authenticated/gov.index'
 import { Route as AuthenticatedGovIncidentsRouteImport } from './routes/_authenticated/gov.incidents'
+import { Route as ApiAuthConfirmRouteImport } from './routes/api/auth/confirm'
+import { Route as ApiAuthRegisterRouteImport } from './routes/api/auth/register'
 import { Route as AuthenticatedGovSystemsIndexRouteImport } from './routes/_authenticated/gov.systems.index'
 import { Route as AuthenticatedGovSystemsNewRouteImport } from './routes/_authenticated/gov.systems.new'
 
@@ -84,6 +86,16 @@ const AuthenticatedGovIncidentsRoute =
     path: '/incidents',
     getParentRoute: () => AuthenticatedGovRoute,
   } as any)
+const ApiAuthConfirmRoute = ApiAuthConfirmRouteImport.update({
+  id: '/api/auth/confirm',
+  path: '/api/auth/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRegisterRoute = ApiAuthRegisterRouteImport.update({
+  id: '/api/auth/register',
+  path: '/api/auth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedGovSystemsIndexRoute =
   AuthenticatedGovSystemsIndexRouteImport.update({
     id: '/systems/',
@@ -108,6 +120,8 @@ export interface FileRoutesByFullPath {
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes/': typeof SchemesIndexRoute
   '/gov/incidents': typeof AuthenticatedGovIncidentsRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
   '/gov/': typeof AuthenticatedGovIndexRoute
   '/gov/systems/new': typeof AuthenticatedGovSystemsNewRoute
   '/gov/systems/': typeof AuthenticatedGovSystemsIndexRoute
@@ -122,6 +136,8 @@ export interface FileRoutesByTo {
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes': typeof SchemesIndexRoute
   '/gov/incidents': typeof AuthenticatedGovIncidentsRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
   '/gov': typeof AuthenticatedGovIndexRoute
   '/gov/systems/new': typeof AuthenticatedGovSystemsNewRoute
   '/gov/systems': typeof AuthenticatedGovSystemsIndexRoute
@@ -139,6 +155,8 @@ export interface FileRoutesById {
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes/': typeof SchemesIndexRoute
   '/_authenticated/gov/incidents': typeof AuthenticatedGovIncidentsRoute
+  '/api/auth/confirm': typeof ApiAuthConfirmRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
   '/_authenticated/gov/': typeof AuthenticatedGovIndexRoute
   '/_authenticated/gov/systems/new': typeof AuthenticatedGovSystemsNewRoute
   '/_authenticated/gov/systems/': typeof AuthenticatedGovSystemsIndexRoute
@@ -156,6 +174,8 @@ export interface FileRouteTypes {
     | '/schemes/$slug'
     | '/schemes/'
     | '/gov/incidents'
+    | '/api/auth/confirm'
+    | '/api/auth/register'
     | '/gov/'
     | '/gov/systems/new'
     | '/gov/systems/'
@@ -170,6 +190,8 @@ export interface FileRouteTypes {
     | '/schemes/$slug'
     | '/schemes'
     | '/gov/incidents'
+    | '/api/auth/confirm'
+    | '/api/auth/register'
     | '/gov'
     | '/gov/systems/new'
     | '/gov/systems'
@@ -186,6 +208,8 @@ export interface FileRouteTypes {
     | '/schemes/$slug'
     | '/schemes/'
     | '/_authenticated/gov/incidents'
+    | '/api/auth/confirm'
+    | '/api/auth/register'
     | '/_authenticated/gov/'
     | '/_authenticated/gov/systems/new'
     | '/_authenticated/gov/systems/'
@@ -201,6 +225,8 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   SchemesSlugRoute: typeof SchemesSlugRoute
   SchemesIndexRoute: typeof SchemesIndexRoute
+  ApiAuthConfirmRoute: typeof ApiAuthConfirmRoute
+  ApiAuthRegisterRoute: typeof ApiAuthRegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -289,6 +315,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGovIncidentsRouteImport
       parentRoute: typeof AuthenticatedGovRoute
     }
+    '/api/auth/confirm': {
+      id: '/api/auth/confirm'
+      path: '/api/auth/confirm'
+      fullPath: '/api/auth/confirm'
+      preLoaderRoute: typeof ApiAuthConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/register': {
+      id: '/api/auth/register'
+      path: '/api/auth/register'
+      fullPath: '/api/auth/register'
+      preLoaderRoute: typeof ApiAuthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/gov/systems/': {
       id: '/_authenticated/gov/systems/'
       path: '/systems'
@@ -344,6 +384,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   SchemesSlugRoute: SchemesSlugRoute,
   SchemesIndexRoute: SchemesIndexRoute,
+  ApiAuthConfirmRoute: ApiAuthConfirmRoute,
+  ApiAuthRegisterRoute: ApiAuthRegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
