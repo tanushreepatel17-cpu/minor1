@@ -55,7 +55,7 @@ Use this file as a copy-paste brief when handing the project to another develope
 | Check | Expected |
 | --- | --- |
 | `http://localhost:8080/schemes` | Shows **3,540** schemes and the **Requirements Guide** button |
-| Scheme detail page | Shows all 8 structured requirements plus written eligibility text |
-| `/eligibility` → fill profile → **Analyze My Eligibility** | Scrolls to **Recommended Schemes for You** and lists matches |
+| Scheme detail page | Shows all 8 structured requirements, written eligibility text, and a **Documents Required** checklist |
+| `/eligibility` → fill profile → **Analyze My Eligibility** | Scrolls to **Recommended Schemes for You** and lists matches in batches of 24 |
 | `/eligibility` → **Save Profile & Register** | Saves the profile and shows the registration success panel |
 | `/auth` → **1-Click Demo Officer Login** | Signs in and opens `/gov` |

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { schemeQuery } from "@/lib/queries";
+import { extractDocuments } from "@/lib/documents";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -18,6 +19,7 @@ import {
   ArrowRight,
   Info,
   FileText,
+  ClipboardList,
 } from "lucide-react";
 
 export const Route = createFileRoute("/schemes/$slug")({
@@ -66,6 +68,8 @@ function SchemePage() {
       return s.official_url;
     }
   })();
+
+  const documents = extractDocuments(s.eligibility, s.benefits, s.summary);
 
   const requirements = [
     {
@@ -294,6 +298,55 @@ function SchemePage() {
               Structured rules above are used by the eligibility matcher. Conditions such as
               documents, landholding, family size, or income limits may appear only in the written
               details, which are the authoritative scheme wording.
+            </p>
+          </section>
+
+          {/* Documents Required */}
+          <section id="documents" className="rounded-2xl border bg-card p-6 shadow-sm space-y-4 scroll-mt-24">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                Documents Required
+              </h2>
+              {s.official_url && (
+                <a
+                  href={s.official_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                >
+                  Official portal <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+
+            {documents.length > 0 ? (
+              <ul className="grid gap-2 sm:grid-cols-2 text-xs">
+                {documents.map((doc) => (
+                  <li
+                    key={doc}
+                    className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    <span className="text-muted-foreground">{doc}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-lg border border-dashed bg-muted/30 p-4 space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  No document checklist is stored for this scheme.
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Check the written eligibility details above and the official portal for the exact
+                  documents needed.
+                </p>
+              </div>
+            )}
+
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Detected from this scheme&apos;s written eligibility text. The official notification
+              and portal are the authoritative source.
             </p>
           </section>
         </div>

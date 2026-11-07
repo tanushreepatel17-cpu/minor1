@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { schemesQuery } from "@/lib/queries";
+import { eligibilitySchemesQuery } from "@/lib/queries";
 import { matchScheme, type Profile } from "@/lib/eligibility";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,6 @@ export const Route = createFileRoute("/eligibility")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(schemesQuery),
   component: Eligibility,
 });
 
@@ -112,7 +111,9 @@ const PRESETS: { label: string; profile: Profile }[] = [
 ];
 
 function Eligibility() {
-  const { data } = useSuspenseQuery(schemesQuery);
+  // Load on the client so the page paints immediately instead of waiting for
+  // all 3,540 scheme rows during SSR.
+  const { data = [], isLoading, isError, refetch } = useQuery(eligibilitySchemesQuery);
   const [p, setP] = useState<Profile>({
     age: null,
     gender: "",
@@ -128,6 +129,7 @@ function Eligibility() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(24);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const resultsRef = useRef<HTMLElement | null>(null);
 
@@ -157,6 +159,10 @@ function Eligibility() {
   // Analyse the profile without saving it. This is the button users press to
   // apply their conditions and see matching schemes.
   const analyze = () => {
+    if (isLoading) {
+      toast.info("Scheme data is still loading. Please wait a moment.");
+      return;
+    }
     const errs = validateProfile();
     setErrors(errs);
     if (Object.keys(errs).length) {
@@ -228,12 +234,17 @@ function Eligibility() {
     setErrors({});
     setAnalyzed(false);
     setSubmitted(false);
+    setVisibleCount(24);
   };
 
   const results = useMemo(() => data.map((s) => ({ s, ...matchScheme(s, p) })), [data, p]);
   const matches = results.filter((r) => r.match);
   const nonMatches = results.filter((r) => !r.match);
   const showRecommendations = analyzed || submitted;
+  // Render results in small batches: 1,400+ cards at once is what made this
+  // page slow and unresponsive.
+  const visibleMatches = showRecommendations ? matches.slice(0, visibleCount) : [];
+  const remainingMatches = Math.max(0, matches.length - visibleMatches.length);
 
   const filledCount = [
     p.age != null,
@@ -430,23 +441,32 @@ function Eligibility() {
             <Button
               type="button"
               onClick={analyze}
+              disabled={isLoading}
               className="w-full h-10 text-xs font-semibold gap-1.5"
             >
               <SearchCheck className="h-4 w-4" />
-              Analyze My Eligibility
+              {isLoading ? "Loading schemes..." : "Analyze My Eligibility"}
             </Button>
             <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
-              Applies your conditions instantly and shows matching schemes. Nothing is saved.
+              {isLoading
+                ? "Loading all published schemes so the matcher can run."
+                : isError
+                  ? "Scheme data could not be loaded. Use Retry in the results panel."
+                  : `${data.length.toLocaleString("en-IN")} schemes ready. Applies your conditions instantly and saves nothing.`}
             </p>
             {!submitted && (
               <Button
                 type="submit"
                 variant="outline"
                 className="w-full h-9 text-xs font-semibold gap-1.5"
-                disabled={submitting}
+                disabled={submitting || isLoading}
               >
                 <Save className="h-3.5 w-3.5" />
-                {submitting ? "Saving your profile..." : "Save Profile & Register"}
+                {isLoading
+                  ? "Loading schemes..."
+                  : submitting
+                    ? "Saving your profile..."
+                    : "Save Profile & Register"}
               </Button>
             )}
           </div>
@@ -487,17 +507,23 @@ function Eligibility() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
             <div>
               <p className="text-lg font-bold text-foreground">
-                <span className="font-display text-3xl font-extrabold text-primary mr-2">
-                  {matches.length}
-                </span>
-                {showRecommendations ? "Recommended Schemes for You" : "Potential Matches Identified"}
+                {showRecommendations ? (
+                  <>
+                    <span className="font-display text-3xl font-extrabold text-primary mr-2">
+                      {matches.length}
+                    </span>
+                    Recommended Schemes for You
+                  </>
+                ) : (
+                  "Your Scheme Matches"
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 {showRecommendations
-                  ? `Showing all ${matches.length} of ${data.length} published schemes that match your conditions.`
-                  : filledCount > 0
-                    ? `Filtered from ${data.length} published schemes based on your profile inputs.`
-                    : `Showing ${matches.length} open schemes — fill your profile and press “Analyze My Eligibility”.`}
+                  ? `Showing ${visibleMatches.length} of ${matches.length} matching schemes (out of ${data.length} published).`
+                  : isLoading
+                    ? "Loading all published schemes so the matcher can run."
+                    : `Fill in your profile and press “Analyze My Eligibility” to check all ${data.length} published schemes.`}
               </p>
               {showRecommendations && profileChips.length > 0 && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -530,84 +556,158 @@ function Eligibility() {
             </Button>
           </div>
 
-          {/* Matches Grid */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {matches.map(({ s }) => (
-              <div
-                key={s.id}
-                className="group flex flex-col justify-between rounded-xl border bg-card p-5 shadow-card hover:shadow-md transition-all duration-150 hover:-translate-y-0.5"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 capitalize">
-                      {s.level} Govt · {s.sector}
-                    </span>
-                    {s.is_demo && (
-                      <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
-                        Demo
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
-                    <Link to="/schemes/$slug" params={{ slug: s.slug }}>
-                      {s.title}
-                    </Link>
-                  </h3>
-
-                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                    {s.benefits || s.summary}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t flex items-center justify-between">
-                  <div className="flex flex-wrap gap-1">
-                    {s.beneficiary_types?.slice(0, 2).map((b) => (
-                      <span
-                        key={b}
-                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground capitalize"
-                      >
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-
-                  <Link
-                    to="/schemes/$slug"
-                    params={{ slug: s.slug }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:text-accent transition-colors"
-                  >
-                    <span>View Scheme</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Expandable Non-Matches */}
-          {filledCount > 0 && nonMatches.length > 0 && (
-            <div className="rounded-xl border bg-card/60 p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold">
-                  Why {nonMatches.length} schemes did not match your inputs
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                These schemes have specific criteria (such as income limits or required categories) that did not align with your current selections:
+          {isLoading ? (
+            <div className="rounded-2xl border border-dashed bg-card/40 p-10 text-center space-y-2">
+              <p className="text-sm font-semibold text-foreground">Loading all published schemes...</p>
+              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
+                The eligibility matcher will be ready in a moment.
               </p>
-              <div className="divide-y max-h-72 overflow-y-auto pr-2 text-xs">
-                {nonMatches.map(({ s, reasons }) => (
-                  <div key={s.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <span className="font-semibold text-foreground">{s.title}</span>
-                    <span className="text-muted-foreground italic sm:text-right">
-                      {reasons.join(" · ")}
-                    </span>
+            </div>
+          ) : isError ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-10 text-center space-y-3">
+              <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+              <h3 className="text-base font-semibold">Could not load scheme data</h3>
+              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
+                Check the Supabase connection and try again.
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          ) : !showRecommendations ? (
+            <div className="rounded-2xl border border-dashed bg-card/40 p-10 text-center space-y-3">
+              <SearchCheck className="mx-auto h-8 w-8 text-primary" />
+              <h3 className="text-base font-semibold">Your matches will appear here</h3>
+              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
+                Enter age, gender, income, category, occupation, residence, BPL and disability
+                status, then run the analysis. Nothing is saved unless you register.
+              </p>
+              <Button type="button" onClick={analyze} className="gap-1.5 text-xs">
+                <SearchCheck className="h-3.5 w-3.5" />
+                Analyze My Eligibility
+              </Button>
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-12 text-center space-y-3 bg-card/40">
+              <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground" />
+              <h3 className="text-base font-semibold">No schemes matched your conditions</h3>
+              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
+                Try relaxing your income, category, occupation, or residence selections and
+                analyze again.
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={resetProfile}>
+                Reset profile
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Matches Grid — rendered in batches so the page stays responsive. */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {visibleMatches.map(({ s }) => (
+                  <div
+                    key={s.id}
+                    className="group flex flex-col justify-between rounded-xl border bg-card p-5 shadow-card hover:shadow-md transition-all duration-150 hover:-translate-y-0.5"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 capitalize">
+                          {s.level} Govt · {s.sector}
+                        </span>
+                        {s.is_demo && (
+                          <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
+                            Demo
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                        <Link to="/schemes/$slug" params={{ slug: s.slug }}>
+                          {s.title}
+                        </Link>
+                      </h3>
+
+                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {s.summary}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                      <div className="flex flex-wrap gap-1">
+                        {s.beneficiary_types?.slice(0, 2).map((b) => (
+                          <span
+                            key={b}
+                            className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground capitalize"
+                          >
+                            {b}
+                          </span>
+                        ))}
+                      </div>
+
+                      <Link
+                        to="/schemes/$slug"
+                        params={{ slug: s.slug }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:text-accent transition-colors"
+                      >
+                        <span>View Scheme</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+
+              {remainingMatches > 0 && (
+                <div className="flex flex-col items-center gap-1.5 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setVisibleCount((count) => count + 24)}
+                  >
+                    Show 24 more schemes
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    {remainingMatches.toLocaleString("en-IN")} more matching schemes
+                  </p>
+                </div>
+              )}
+
+              {/* Non-matches are capped so they do not create thousands of DOM nodes. */}
+              {nonMatches.length > 0 && (
+                <div className="rounded-xl border bg-card/60 p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">
+                      Why {nonMatches.length.toLocaleString("en-IN")} schemes did not match
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    These schemes have specific criteria (such as income limits or required
+                    categories) that did not align with your current selections:
+                  </p>
+                  <div className="divide-y max-h-72 overflow-y-auto pr-2 text-xs">
+                    {nonMatches.slice(0, 20).map(({ s, reasons }) => (
+                      <div
+                        key={s.id}
+                        className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1"
+                      >
+                        <span className="font-semibold text-foreground">{s.title}</span>
+                        <span className="text-muted-foreground italic sm:text-right">
+                          {reasons.join(" · ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {nonMatches.length > 20 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Showing the first 20 of {nonMatches.length.toLocaleString("en-IN")} schemes
+                      that did not match.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
