@@ -23,6 +23,19 @@ npm i
 npm run dev
 ```
 
+The dev server is configured for **http://localhost:8080** (Vite `strictPort: true`).
+
+## Demo officer login
+
+Open `/auth` and use **1-Click Demo Officer Login**, or sign in with:
+
+- **Email:** `demo.officer@nagsi.gov.in`
+- **Password:** `DemoOfficer@2026`
+
+New officer accounts created through the form must confirm their email before signing in.
+
+See [`PROMPT.md`](PROMPT.md) for a copy-paste run-and-demo brief.
+
 ## Stack
 
 - TanStack Start + React + Vite

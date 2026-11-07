@@ -18,6 +18,7 @@ import {
   Cpu,
   Layers,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 
 export const Route = createFileRoute("/schemes/")({
@@ -124,6 +125,10 @@ function Schemes() {
     });
   }, [data, q, level, selectedAud, selectedSector, onlyAi]);
 
+  const total = data.length;
+  const centralCount = data.filter((s) => s.level === "central").length;
+  const stateCount = data.filter((s) => s.level === "state").length;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       {/* Page Title */}
@@ -137,13 +142,26 @@ function Schemes() {
             Scheme Explorer
           </h1>
           <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
-            Search 42 AI initiatives, welfare yojanas, research fellowships, and business subsidies across Central and State Governments.
+            Search all <strong className="text-foreground">{total.toLocaleString("en-IN")}</strong>{" "}
+            verified schemes — {centralCount.toLocaleString("en-IN")} central and{" "}
+            {stateCount.toLocaleString("en-IN")} state government schemes, with full eligibility
+            requirements on every scheme page.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button asChild variant="outline" size="sm" className="gap-2 text-xs">
             <Link to="/eligibility">Personal Eligibility Quiz</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-2 text-xs">
+            <a
+              href="https://github.com/tanushreepatel17-cpu/minor1/blob/main/docs/scheme-requirements.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Requirements Guide
+            </a>
           </Button>
           <Button asChild size="sm" className="gap-2 text-xs bg-saffron text-saffron-foreground hover:bg-saffron/90">
             <Link to="/assistant">
@@ -258,7 +276,8 @@ function Schemes() {
       {/* Results Header */}
       <div className="mt-8 flex items-center justify-between border-b pb-3">
         <p className="text-sm font-medium text-foreground">
-          Showing <span className="font-bold text-primary">{list.length}</span> schemes
+          Showing <span className="font-bold text-primary">{list.length.toLocaleString("en-IN")}</span>{" "}
+          of {total.toLocaleString("en-IN")} schemes
           {hasActiveFilters ? " matching your filters" : ""}
         </p>
         <span className="text-xs text-muted-foreground hidden sm:inline">

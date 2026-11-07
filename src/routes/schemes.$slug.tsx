@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Info,
+  FileText,
 } from "lucide-react";
 
 export const Route = createFileRoute("/schemes/$slug")({
@@ -56,6 +57,60 @@ function SchemePage() {
     s.title.toLowerCase().includes("ai") ||
     s.slug.toLowerCase().includes("ai") ||
     s.sector === "Cross-sector";
+
+  const host = (() => {
+    if (!s.official_url) return "";
+    try {
+      return new URL(s.official_url).hostname;
+    } catch {
+      return s.official_url;
+    }
+  })();
+
+  const requirements = [
+    {
+      label: "Age",
+      value:
+        s.min_age != null || s.max_age != null
+          ? `${s.min_age ?? 0} to ${s.max_age ?? "any"} years`
+          : "No specific age limit",
+    },
+    {
+      label: "Gender",
+      value: s.genders?.length ? s.genders.join(", ") : "All genders",
+    },
+    {
+      label: "Family annual income",
+      value: s.max_annual_income
+        ? `Up to ₹${s.max_annual_income.toLocaleString("en-IN")} per year`
+        : "No numeric income cap stored — see written eligibility below",
+    },
+    {
+      label: "Social category",
+      value: s.social_categories?.length
+        ? s.social_categories.map((c) => c.toUpperCase()).join(", ")
+        : "All categories",
+    },
+    {
+      label: "Occupation",
+      value: s.occupations?.length ? s.occupations.join(", ") : "All occupations",
+    },
+    {
+      label: "Area of residence",
+      value:
+        s.residence && s.residence !== "any"
+          ? `${s.residence.charAt(0).toUpperCase() + s.residence.slice(1)} only`
+          : "Rural or urban",
+    },
+    {
+      label: "BPL / Ration card",
+      value: s.requires_bpl ? "Required" : "Not required",
+    },
+    {
+      label: "Person with disability",
+      value: s.requires_disability ? "Required (PwD)" : "Not required",
+    },
+  ];
 
   return (
     <article className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-8">
@@ -199,39 +254,47 @@ function SchemePage() {
             <p className="text-sm leading-relaxed text-foreground/90 font-medium">{s.benefits}</p>
           </section>
 
-          {/* Eligibility Details */}
-          <section className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Scale className="h-5 w-5 text-primary" />
-              Who May Be Eligible
-            </h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">{s.eligibility}</p>
-
-            {/* Structured Criteria Checklist */}
-            <div className="grid gap-2 pt-2 sm:grid-cols-2 text-xs">
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <span className="font-semibold text-foreground">Target Genders: </span>
-                <span className="text-muted-foreground capitalize">
-                  {s.genders?.length ? s.genders.join(", ") : "All genders"}
-                </span>
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <span className="font-semibold text-foreground">Social Categories: </span>
-                <span className="text-muted-foreground capitalize">
-                  {s.social_categories?.length ? s.social_categories.join(", ") : "All categories"}
-                </span>
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <span className="font-semibold text-foreground">Eligible Occupations: </span>
-                <span className="text-muted-foreground capitalize">
-                  {s.occupations?.length ? s.occupations.join(", ") : "General public / all"}
-                </span>
-              </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <span className="font-semibold text-foreground">Residence Type: </span>
-                <span className="text-muted-foreground capitalize">{s.residence || "Rural & Urban"}</span>
-              </div>
+          {/* Eligibility Requirements */}
+          <section id="requirements" className="rounded-2xl border bg-card p-6 shadow-sm space-y-4 scroll-mt-24">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Eligibility Requirements
+              </h2>
+              <a
+                href="https://github.com/tanushreepatel17-cpu/minor1/blob/main/docs/scheme-requirements.md"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+              >
+                Full requirements guide <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 text-xs">
+              {requirements.map((req) => (
+                <div key={req.label} className="rounded-lg border bg-muted/40 p-3 space-y-1">
+                  <p className="font-semibold text-foreground">{req.label}</p>
+                  <p className="capitalize text-muted-foreground">{req.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 space-y-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                <Scale className="h-3.5 w-3.5" />
+                Written eligibility details
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                {s.eligibility || "Not provided in the scheme record."}
+              </p>
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Structured rules above are used by the eligibility matcher. Conditions such as
+              documents, landholding, family size, or income limits may appear only in the written
+              details, which are the authoritative scheme wording.
+            </p>
           </section>
         </div>
 
@@ -255,7 +318,7 @@ function SchemePage() {
 
                 <div className="text-[11px] text-muted-foreground space-y-1 pt-1">
                   <p>
-                    <strong>Portal:</strong> {new URL(s.official_url).hostname}
+                    <strong>Portal:</strong> {host}
                   </p>
                   <p>
                     <strong>Verified:</strong> {s.last_verified || "Verified via official notification"}

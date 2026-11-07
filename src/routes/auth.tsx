@@ -45,10 +45,14 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     if (mode === "in") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
-      if (error) {
-        toast.error(error.message);
+      if (error || !data.session) {
+        toast.error(
+          error?.message === "Invalid login credentials"
+            ? "Invalid email or password. Use the 1-Click Demo Officer Login, or register and confirm your email first."
+            : (error?.message ?? "Sign in failed. Please try again."),
+        );
         return;
       }
       toast.success("Welcome back, Officer!");
@@ -77,34 +81,31 @@ function AuthPage() {
 
   const demoLogin = async () => {
     setLoading(true);
-    // Use demo officer email/password or create one
     const demoEmail = "demo.officer@nagsi.gov.in";
     const demoPassword = "DemoOfficer@2026";
 
-    const { error: inError } = await supabase.auth.signInWithPassword({
-      email: demoEmail,
-      password: demoPassword,
-    });
-
-    if (inError) {
-      // Auto-signup demo user
-      const { error: upError } = await supabase.auth.signUp({
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: demoEmail,
         password: demoPassword,
       });
-      if (upError) {
-        // Fallback: prompt manual credentials
+
+      if (error || !data.session) {
+        // Never navigate without a session: email confirmation is required on this project.
         setEmail(demoEmail);
         setPassword(demoPassword);
-        setLoading(false);
-        toast.info("Prefilled credentials. Click submit to sign in.");
+        toast.error(
+          error?.message ??
+            "Demo officer account is unavailable. Credentials have been filled in; contact the administrator.",
+        );
         return;
       }
-    }
 
-    setLoading(false);
-    toast.success("Signed in as Demo Governance Officer");
-    navigate({ to: "/gov" });
+      toast.success("Signed in as Demo Governance Officer");
+      navigate({ to: "/gov" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -209,6 +210,13 @@ function AuthPage() {
                 ? "Sign In to Gov Portal"
                 : "Submit Registration"}
           </Button>
+
+          {mode === "up" && (
+            <p className="rounded-lg border bg-muted/40 p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+              New officer accounts must confirm their email before the first sign-in. For instant
+              evaluation access, use the 1-Click Demo Officer Login above.
+            </p>
+          )}
         </form>
 
         <div className="text-center pt-2 border-t">

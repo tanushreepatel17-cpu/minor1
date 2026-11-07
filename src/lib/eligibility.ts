@@ -24,17 +24,26 @@ export type SchemeRules = {
 
 export function matchScheme(s: SchemeRules, p: Profile): { match: boolean; reasons: string[] } {
   const fails: string[] = [];
+  // Defensive normalisation: the database currently stores empty arrays, but a
+  // missing array or residence value should mean "no restriction", not a crash.
+  const genders = (s.genders ?? []).map((g) => g.toLowerCase());
+  const categories = (s.social_categories ?? []).map((c) => c.toLowerCase());
+  const occupations = (s.occupations ?? []).map((o) => o.toLowerCase());
+  const residence = (s.residence ?? "any").toLowerCase();
+
   if (p.age != null) {
     if (s.min_age != null && p.age < s.min_age) fails.push(`Minimum age ${s.min_age}`);
     if (s.max_age != null && p.age > s.max_age) fails.push(`Maximum age ${s.max_age}`);
   }
-  if (s.genders.length && p.gender && !s.genders.includes(p.gender)) fails.push(`Only for ${s.genders.join("/")}`);
+  if (genders.length && p.gender && !genders.includes(p.gender)) fails.push(`Only for ${genders.join("/")}`);
   if (s.max_annual_income != null && p.annualIncome != null && p.annualIncome > s.max_annual_income)
     fails.push(`Income up to ₹${s.max_annual_income.toLocaleString("en-IN")}`);
-  if (s.social_categories.length && p.socialCategory && !s.social_categories.includes(p.socialCategory))
-    fails.push(`Only for ${s.social_categories.map((c) => c.toUpperCase()).join("/")}`);
-  if (s.occupations.length && p.occupation && !s.occupations.includes(p.occupation)) fails.push(`For ${s.occupations.join("/")}`);
-  if (s.residence !== "any" && p.residence && s.residence !== p.residence) fails.push(`${s.residence} areas only`);
+  if (categories.length && p.socialCategory && !categories.includes(p.socialCategory))
+    fails.push(`Only for ${categories.map((c) => c.toUpperCase()).join("/")}`);
+  if (occupations.length && p.occupation && !occupations.includes(p.occupation))
+    fails.push(`For ${occupations.join("/")}`);
+  if (residence !== "any" && p.residence && residence !== p.residence)
+    fails.push(`${residence} areas only`);
   if (s.requires_bpl && !p.bpl) fails.push("BPL / poor household required");
   if (s.requires_disability && !p.disability) fails.push("For persons with disability");
   return { match: fails.length === 0, reasons: fails };

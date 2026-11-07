@@ -21,6 +21,8 @@ import {
   AlertCircle,
   HelpCircle,
   SlidersHorizontal,
+  SearchCheck,
+  Save,
 } from "lucide-react";
 
 export const Route = createFileRoute("/eligibility")({
@@ -125,16 +127,15 @@ function Eligibility() {
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [analyzed, setAnalyzed] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const resultsRef = useRef<HTMLElement | null>(null);
 
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }));
   const num = (v: string) => (v === "" ? null : Number(v));
 
-  const validate = () => {
+  const validateProfile = () => {
     const e: Partial<Record<FieldKey, string>> = {};
-    if (!fullName.trim()) e.fullName = "Please enter your full name.";
-    else if (fullName.trim().length < 3) e.fullName = "Name must be at least 3 characters.";
     if (p.age == null || Number.isNaN(p.age)) e.age = "Age is required.";
     else if (p.age < 0 || p.age > 120) e.age = "Age must be between 0 and 120.";
     if (!p.gender) e.gender = "Please select a gender.";
@@ -144,6 +145,29 @@ function Eligibility() {
     if (!p.occupation) e.occupation = "Please select an occupation.";
     if (!p.residence) e.residence = "Please select your area of residence.";
     return e;
+  };
+
+  const validate = () => {
+    const e = validateProfile();
+    if (!fullName.trim()) e.fullName = "Please enter your full name.";
+    else if (fullName.trim().length < 3) e.fullName = "Name must be at least 3 characters.";
+    return e;
+  };
+
+  // Analyse the profile without saving it. This is the button users press to
+  // apply their conditions and see matching schemes.
+  const analyze = () => {
+    const errs = validateProfile();
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error("Fill in all profile fields so we can analyse your eligibility.");
+      return;
+    }
+    setAnalyzed(true);
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    toast.success(`Analysis complete — ${matches.length} schemes match your conditions.`);
   };
 
   const saveProfile = async () => {
@@ -174,6 +198,7 @@ function Eligibility() {
     try {
       await saveProfile();
       setSubmitted(true);
+      setAnalyzed(true);
       toast.success(
         matches.length
           ? `Registration complete! We found ${matches.length} schemes for your profile.`
@@ -200,11 +225,15 @@ function Eligibility() {
       bpl: false,
       disability: false,
     });
+    setErrors({});
+    setAnalyzed(false);
+    setSubmitted(false);
   };
 
   const results = useMemo(() => data.map((s) => ({ s, ...matchScheme(s, p) })), [data, p]);
   const matches = results.filter((r) => r.match);
   const nonMatches = results.filter((r) => !r.match);
+  const showRecommendations = analyzed || submitted;
 
   const filledCount = [
     p.age != null,
@@ -255,7 +284,7 @@ function Eligibility() {
               {preset.label}
             </button>
           ))}
-          {filledCount > 0 && (
+          {(filledCount > 0 || showRecommendations) && (
             <button
               onClick={resetProfile}
               className="ml-auto inline-flex items-center gap-1 text-xs text-destructive hover:underline font-medium"
@@ -397,7 +426,32 @@ function Eligibility() {
             </label>
           </div>
 
-          {submitted ? (
+          <div className="space-y-2 pt-1">
+            <Button
+              type="button"
+              onClick={analyze}
+              className="w-full h-10 text-xs font-semibold gap-1.5"
+            >
+              <SearchCheck className="h-4 w-4" />
+              Analyze My Eligibility
+            </Button>
+            <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
+              Applies your conditions instantly and shows matching schemes. Nothing is saved.
+            </p>
+            {!submitted && (
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full h-9 text-xs font-semibold gap-1.5"
+                disabled={submitting}
+              >
+                <Save className="h-3.5 w-3.5" />
+                {submitting ? "Saving your profile..." : "Save Profile & Register"}
+              </Button>
+            )}
+          </div>
+
+          {submitted && (
             <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-2">
               <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" /> Registration Complete
@@ -425,10 +479,6 @@ function Eligibility() {
                 </Button>
               </div>
             </div>
-          ) : (
-            <Button type="submit" className="w-full h-10 text-xs font-semibold" disabled={submitting}>
-              {submitting ? "Saving your profile..." : "Submit Registration"}
-            </Button>
           )}
         </form>
 
@@ -440,16 +490,16 @@ function Eligibility() {
                 <span className="font-display text-3xl font-extrabold text-primary mr-2">
                   {matches.length}
                 </span>
-                {submitted ? "Recommended Schemes for You" : "Potential Matches Identified"}
+                {showRecommendations ? "Recommended Schemes for You" : "Potential Matches Identified"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {submitted
-                  ? `Showing all ${matches.length} schemes that match your profile.`
+                {showRecommendations
+                  ? `Showing all ${matches.length} of ${data.length} published schemes that match your conditions.`
                   : filledCount > 0
                     ? `Filtered from ${data.length} published schemes based on your profile inputs.`
-                    : `Showing ${matches.length} open schemes — adjust profile parameters on the left to filter.`}
+                    : `Showing ${matches.length} open schemes — fill your profile and press “Analyze My Eligibility”.`}
               </p>
-              {submitted && profileChips.length > 0 && (
+              {showRecommendations && profileChips.length > 0 && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                     Your profile:
@@ -463,6 +513,12 @@ function Eligibility() {
                     </span>
                   ))}
                 </div>
+              )}
+              {showRecommendations && (
+                <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                  Income is compared only where a scheme stores a numeric cap. Always check the
+                  written eligibility on each scheme page.
+                </p>
               )}
             </div>
 
