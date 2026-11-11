@@ -17,6 +17,7 @@ import { Route as EligibilityRouteImport } from './routes/eligibility'
 import { Route as FrameworksRouteImport } from './routes/frameworks'
 import { Route as AuthenticatedGovRouteImport } from './routes/_authenticated/gov'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as SchemesIndexRouteImport } from './routes/schemes.index'
 import { Route as SchemesSlugRouteImport } from './routes/schemes.$slug'
 import { Route as AuthenticatedGovIndexRouteImport } from './routes/_authenticated/gov.index'
@@ -63,6 +64,11 @@ const AuthenticatedGovRoute = AuthenticatedGovRouteImport.update({
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SchemesIndexRoute = SchemesIndexRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/frameworks': typeof FrameworksRoute
   '/gov': typeof AuthenticatedGovRouteWithChildren
   '/api/chat': typeof ApiChatRoute
+  '/api/health': typeof ApiHealthRoute
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes/': typeof SchemesIndexRoute
   '/gov/incidents': typeof AuthenticatedGovIncidentsRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/eligibility': typeof EligibilityRoute
   '/frameworks': typeof FrameworksRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/health': typeof ApiHealthRoute
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes': typeof SchemesIndexRoute
   '/gov/incidents': typeof AuthenticatedGovIncidentsRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/frameworks': typeof FrameworksRoute
   '/_authenticated/gov': typeof AuthenticatedGovRouteWithChildren
   '/api/chat': typeof ApiChatRoute
+  '/api/health': typeof ApiHealthRoute
   '/schemes/$slug': typeof SchemesSlugRoute
   '/schemes/': typeof SchemesIndexRoute
   '/_authenticated/gov/incidents': typeof AuthenticatedGovIncidentsRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/frameworks'
     | '/gov'
     | '/api/chat'
+    | '/api/health'
     | '/schemes/$slug'
     | '/schemes/'
     | '/gov/incidents'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/eligibility'
     | '/frameworks'
     | '/api/chat'
+    | '/api/health'
     | '/schemes/$slug'
     | '/schemes'
     | '/gov/incidents'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/frameworks'
     | '/_authenticated/gov'
     | '/api/chat'
+    | '/api/health'
     | '/schemes/$slug'
     | '/schemes/'
     | '/_authenticated/gov/incidents'
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   EligibilityRoute: typeof EligibilityRoute
   FrameworksRoute: typeof FrameworksRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   SchemesSlugRoute: typeof SchemesSlugRoute
   SchemesIndexRoute: typeof SchemesIndexRoute
   ApiAuthConfirmRoute: typeof ApiAuthConfirmRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schemes/': {
@@ -382,6 +402,7 @@ const rootRouteChildren: RootRouteChildren = {
   EligibilityRoute: EligibilityRoute,
   FrameworksRoute: FrameworksRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiHealthRoute: ApiHealthRoute,
   SchemesSlugRoute: SchemesSlugRoute,
   SchemesIndexRoute: SchemesIndexRoute,
   ApiAuthConfirmRoute: ApiAuthConfirmRoute,

@@ -1,0 +1,41 @@
+# Render Blueprint for the NAGSI web app (TanStack Start + Nitro node-server).
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repository.
+# Render reads this file, builds the app, then runs Nitro's Node server on the
+# port it provides via $PORT. Fill in the `sync: false` variables on first deploy.
+services:
+  - type: web
+    name: nagsi
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: node .output/server/index.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.19.0
+      # Build the Node server (not the Vercel bundle).
+      - key: NITRO_PRESET
+        value: node-server
+      # Needed at build time: Vite inlines these into the browser bundle.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      # Needed at runtime by SSR and the API routes.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Optional: without a key the assistant answers from its built-in engine.
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
