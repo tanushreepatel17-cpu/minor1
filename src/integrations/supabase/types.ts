@@ -325,26 +325,32 @@ export type Database = {
         Row: {
           comment: string | null
           created_at: string
+          guest_key: string | null
           id: string
           name: string | null
           rating: number
           scheme_id: string
+          user_id: string | null
         }
         Insert: {
           comment?: string | null
           created_at?: string
+          guest_key?: string | null
           id?: string
           name?: string | null
           rating: number
           scheme_id: string
+          user_id?: string | null
         }
         Update: {
           comment?: string | null
           created_at?: string
+          guest_key?: string | null
           id?: string
           name?: string | null
           rating?: number
           scheme_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -480,6 +486,13 @@ export type Database = {
         Returns: boolean
       }
       is_gov: { Args: { _user_id: string }; Returns: boolean }
+      scheme_feedback_stats: {
+        Args: { p_scheme_id: string }
+        Returns: {
+          average_rating: number
+          review_count: number
+        }[]
+      }
       register_citizen_profile: {
         Args: {
           p_age: number

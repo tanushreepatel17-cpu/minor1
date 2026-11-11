@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { schemeQuery } from "@/lib/queries";
 import { documentsForScheme } from "@/lib/documents";
+import { officialLinksForScheme } from "@/lib/official-links";
 import { SchemeFeedback } from "@/components/SchemeFeedback";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +72,7 @@ function SchemePage() {
   })();
 
   const documents = documentsForScheme(s);
+  const officialLinks = officialLinksForScheme(s);
 
   // Benefits are stored as free text with "- " bullets and line breaks. Split
   // them so the section renders as a readable checklist instead of one wall of
@@ -323,6 +325,53 @@ function SchemePage() {
             </p>
           </section>
 
+          {/* Official Links */}
+          <section
+            id="official-links"
+            className="rounded-2xl border bg-card p-6 shadow-sm space-y-4 scroll-mt-24"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-primary" />
+                Official Links
+              </h2>
+              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400">
+                Government sources
+              </span>
+            </div>
+
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {officialLinks.map((link) => (
+                <li key={link.url}>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex h-full items-start gap-2.5 rounded-xl border bg-muted/40 p-3.5 transition-colors hover:border-primary hover:bg-primary/5"
+                  >
+                    <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="space-y-1">
+                      <span className="block text-xs font-semibold text-foreground">
+                        {link.label}
+                      </span>
+                      <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                        {link.description}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            {!s.official_url && (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                A direct department portal is not stored for this scheme, so the official MyScheme
+                search above is the verified route to the application form and notification. NAGSI
+                never collects applications or fees.
+              </p>
+            )}
+          </section>
+
           {/* Documents Required */}
           <section id="documents" className="rounded-2xl border bg-card p-6 shadow-sm space-y-4 scroll-mt-24">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -420,10 +469,28 @@ function SchemePage() {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Fictional academic demonstration entry — no live application portal.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                A direct department portal is not stored for this scheme. Use the official MyScheme
+                search below to reach the application form and notification.
               </p>
             )}
+
+            {/* Every scheme keeps a working official destination. */}
+            {officialLinks
+              .filter((link) => link.kind === "search")
+              .map((link) => (
+                <Button
+                  key={link.url}
+                  asChild
+                  variant={s.official_url ? "outline" : "default"}
+                  className="w-full gap-2 text-xs font-semibold"
+                >
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    {link.label}
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              ))}
 
             <div className="pt-4 border-t space-y-3">
               <div className="rounded-xl border border-saffron/30 bg-saffron/10 p-3.5 space-y-2">

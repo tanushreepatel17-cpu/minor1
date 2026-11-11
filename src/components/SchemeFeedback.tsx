@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getGuestKey } from "@/lib/guest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, MessageSquare, Star } from "lucide-react";
+import { CheckCircle2, Lock, MessageSquare, Star } from "lucide-react";
 
 type FeedbackRow = {
   id: string;
@@ -15,8 +16,19 @@ type FeedbackRow = {
   created_at: string;
 };
 
-const feedbackQuery = (schemeId: string) => ({
-  queryKey: ["scheme_feedback", schemeId],
+type FeedbackStats = {
+  review_count: number;
+  average_rating: number;
+};
+
+/*
+ * Only the signed-in user's own feedback is returned: row-level security in
+ * `scheme_feedback` matches `user_id` (signed in) or the `x-guest-key` header
+ * (guest). The average rating is fetched separately as an anonymous aggregate,
+ * so no one's comments are exposed.
+ */
+const myFeedbackQuery = (schemeId: string) => ({
+  queryKey: ["scheme_feedback", "mine", schemeId],
   queryFn: async (): Promise<FeedbackRow[]> => {
     const { data, error } = await supabase
       .from("scheme_feedback")
@@ -26,6 +38,22 @@ const feedbackQuery = (schemeId: string) => ({
       .limit(25);
     if (error) throw error;
     return data ?? [];
+  },
+  staleTime: 10_000,
+});
+
+const feedbackStatsQuery = (schemeId: string) => ({
+  queryKey: ["scheme_feedback", "stats", schemeId],
+  queryFn: async (): Promise<FeedbackStats> => {
+    const { data, error } = await supabase.rpc("scheme_feedback_stats", {
+      p_scheme_id: schemeId,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      review_count: Number(row?.review_count ?? 0),
+      average_rating: Number(row?.average_rating ?? 0),
+    };
   },
   staleTime: 30_000,
 });
@@ -53,26 +81,49 @@ export function SchemeFeedback({
   schemeTitle: string;
 }) {
   const queryClient = useQueryClient();
-  const { data = [], isLoading, isError } = useQuery(feedbackQuery(schemeId));
+  const { data: mine = [], isLoading, isError } = useQuery(myFeedbackQuery(schemeId));
+  const { data: stats } = useQuery(feedbackStatsQuery(schemeId));
 
+  const [userId, setUserId] = useState<string | null>(null);
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
 
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setUserId(data.session?.user.id ?? null);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user.id ?? null);
+    });
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
   const submit = useMutation({
     mutationFn: async () => {
       if (rating < 1) throw new Error("Choose a rating from 1 to 5 stars.");
+      const { data: session } = await supabase.auth.getSession();
+      const currentUserId = session.session?.user.id ?? null;
       const { error } = await supabase.from("scheme_feedback").insert({
         scheme_id: schemeId,
         rating,
         name: name.trim() || null,
         comment: comment.trim() || null,
+        user_id: currentUserId,
+        guest_key: currentUserId ? null : getGuestKey(),
       });
       if (error) throw error;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["scheme_feedback", schemeId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["scheme_feedback", "mine", schemeId] }),
+        queryClient.invalidateQueries({ queryKey: ["scheme_feedback", "stats", schemeId] }),
+      ]);
       toast.success("Thanks! Your feedback has been recorded.");
       setRating(0);
       setHovered(0);
@@ -86,10 +137,6 @@ export function SchemeFeedback({
     },
   });
 
-  const average = data.length
-    ? data.reduce((total, row) => total + row.rating, 0) / data.length
-    : 0;
-
   return (
     <section
       id="feedback"
@@ -100,21 +147,24 @@ export function SchemeFeedback({
         <div>
           <h2 id="feedback-heading" className="text-xl font-bold flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Citizen Feedback
+            Your Feedback
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Share how useful this scheme page was. Feedback is public and helps other applicants.
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground flex items-start gap-1.5">
+            <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+            Private to you — only your own feedback is shown on this page.
           </p>
         </div>
-        {data.length > 0 && (
+        {stats && stats.review_count > 0 && (
           <div className="rounded-xl border bg-muted/40 px-3 py-2 text-right">
             <div className="flex items-center justify-end gap-1.5">
-              <Stars value={Math.round(average)} />
-              <span className="text-sm font-bold text-foreground">{average.toFixed(1)}</span>
+              <Stars value={Math.round(stats.average_rating)} />
+              <span className="text-sm font-bold text-foreground">
+                {stats.average_rating.toFixed(1)}
+              </span>
               <span className="text-xs text-muted-foreground">/ 5</span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              {data.length} {data.length === 1 ? "review" : "reviews"}
+              Average from {stats.review_count} {stats.review_count === 1 ? "review" : "reviews"}
             </p>
           </div>
         )}
@@ -188,7 +238,9 @@ export function SchemeFeedback({
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] text-muted-foreground">
-            No account needed. Do not post personal or sensitive information.
+            {userId
+              ? "Saved to your account. Only you can see it."
+              : "No account needed — this browser is remembered so only you see it."}
           </p>
           <Button
             type="submit"
@@ -204,38 +256,35 @@ export function SchemeFeedback({
 
       <div className="space-y-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Recent feedback
+          Your previous feedback
         </h3>
 
-        {isLoading && <p className="text-xs text-muted-foreground">Loading feedback...</p>}
+        {isLoading && <p className="text-xs text-muted-foreground">Loading your feedback...</p>}
 
         {isError && (
           <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-            Feedback could not be loaded right now. You can still submit yours.
+            Your feedback could not be loaded right now. You can still submit a new review.
           </p>
         )}
 
-        {!isLoading && !isError && data.length === 0 && (
+        {!isLoading && !isError && mine.length === 0 && (
           <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-            No feedback yet for this scheme. Be the first to share your experience.
+            You have not reviewed this scheme yet. Your note stays private to you.
           </p>
         )}
 
-        {data.length > 0 && (
+        {mine.length > 0 && (
           <ul className="divide-y rounded-xl border bg-card">
-            {data.slice(0, 6).map((row) => (
+            {mine.slice(0, 6).map((row) => (
               <li key={row.id} className="p-3.5 space-y-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-foreground">
-                      {row.name?.trim() || "Anonymous citizen"}
+                      {row.name?.trim() || (userId ? "You" : "Anonymous (you)")}
                     </span>
                     <Stars value={row.rating} />
                   </div>
-                  <time
-                    className="text-[10px] text-muted-foreground"
-                    dateTime={row.created_at}
-                  >
+                  <time className="text-[10px] text-muted-foreground" dateTime={row.created_at}>
                     {new Date(row.created_at).toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
@@ -251,9 +300,9 @@ export function SchemeFeedback({
           </ul>
         )}
 
-        {data.length > 6 && (
+        {mine.length > 6 && (
           <p className="text-[11px] text-muted-foreground">
-            Showing the 6 most recent of {data.length} feedback entries.
+            Showing your 6 most recent reviews of this scheme.
           </p>
         )}
       </div>
