@@ -1,11 +1,43 @@
 /**
- * Extract likely required documents from a scheme's written text.
+ * Work out the documents a scheme is likely to require.
  *
- * The `schemes` table has no dedicated documents column, so this is a
- * best-effort checklist based on explicit mentions in the scheme record.
- * The written eligibility details and the official portal remain authoritative.
+ * The `schemes` table has no dedicated documents column, so the checklist is
+ * built from two sources:
+ *   1. Documents explicitly mentioned in the scheme's written text.
+ *   2. Documents implied by the structured eligibility rules (BPL, category,
+ *      disability, age, residence, occupation, beneficiary type, monetary
+ *      benefit).
+ *
+ * The official notification and the scheme portal always remain the
+ * authoritative source; the UI labels each item with where it came from.
  */
-const DOCUMENT_PATTERNS: { label: string; pattern: RegExp }[] = [
+
+export type DocumentSource = "text" | "criteria";
+
+export type SchemeDocument = {
+  label: string;
+  source: DocumentSource;
+  reason: string;
+};
+
+export type DocumentScheme = {
+  eligibility?: string | null;
+  benefits?: string | null;
+  summary?: string | null;
+  requires_bpl?: boolean | null;
+  requires_disability?: boolean | null;
+  social_categories?: string[] | null;
+  occupations?: string[] | null;
+  beneficiary_types?: string[] | null;
+  residence?: string | null;
+  min_age?: number | null;
+  max_age?: number | null;
+  max_annual_income?: number | null;
+  level?: string | null;
+  state_name?: string | null;
+};
+
+const TEXT_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "Aadhaar card", pattern: /\baadha?ar\b/i },
   { label: "Voter ID card", pattern: /\bvoter\s*(id|card)\b/i },
   { label: "Ration card", pattern: /\bration\s*card\b/i },
@@ -65,6 +97,9 @@ const DOCUMENT_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "Consent letter", pattern: /\bconsent\s*letter\b/i },
 ];
 
+const MONEY_RE =
+  /₹|\brs\.?\s?\d|\bfinancial\b|\bsubsid|\bloan\b|\bscholarship\b|\bgrant\b|\bassistance\b|\bfund\b|\bamount\b|\bstipend\b|\bdisbur|\bcash\b|\bcompensation\b|\bhonorarium\b/i;
+
 export function extractDocuments(...texts: (string | null | undefined)[]): string[] {
   const haystack = texts
     .filter((value): value is string => Boolean(value))
@@ -73,7 +108,214 @@ export function extractDocuments(...texts: (string | null | undefined)[]): strin
 
   if (!haystack) return [];
 
-  return DOCUMENT_PATTERNS.filter(({ pattern }) => pattern.test(haystack)).map(
+  return TEXT_PATTERNS.filter(({ pattern }) => pattern.test(haystack)).map(
     ({ label }) => label,
   );
+}
+
+function add(
+  docs: SchemeDocument[],
+  label: string,
+  source: DocumentSource,
+  reason: string,
+) {
+  if (docs.some((doc) => doc.label === label)) return;
+  docs.push({ label, source, reason });
+}
+
+export function documentsForScheme(scheme: DocumentScheme): SchemeDocument[] {
+  const docs: SchemeDocument[] = [];
+
+  const categories = (scheme.social_categories ?? []).map((value) => value.toLowerCase());
+  const occupations = (scheme.occupations ?? []).map((value) => value.toLowerCase());
+  const beneficiaryTypes = (scheme.beneficiary_types ?? []).map((value) =>
+    value.toLowerCase(),
+  );
+
+  const text = [scheme.eligibility, scheme.benefits, scheme.summary]
+    .filter((value): value is string => Boolean(value))
+    .join("\n");
+
+  const hasPersonalCriteria =
+    Boolean(scheme.requires_bpl) ||
+    Boolean(scheme.requires_disability) ||
+    categories.length > 0 ||
+    scheme.min_age != null ||
+    scheme.max_age != null ||
+    scheme.max_annual_income != null ||
+    (scheme.residence != null && scheme.residence !== "any");
+
+  const isCitizenFacing =
+    beneficiaryTypes.some((type) =>
+      ["citizens", "students", "reserved_categories", "msmes", "startups"].includes(type),
+    ) ||
+    hasPersonalCriteria ||
+    occupations.length > 0 ||
+    MONEY_RE.test(text);
+
+  // --- Documents implied by the structured eligibility rules ---
+
+  if (isCitizenFacing) {
+    add(docs, "Aadhaar card", "criteria", "Standard identity proof for the applicant");
+  }
+
+  if (scheme.requires_bpl) {
+    add(
+      docs,
+      "BPL card / certificate",
+      "criteria",
+      "The scheme requires the applicant to hold a BPL card",
+    );
+  }
+
+  if (scheme.requires_disability) {
+    add(
+      docs,
+      "Disability / UDID certificate",
+      "criteria",
+      "The scheme is reserved for persons with disabilities",
+    );
+  }
+
+  if (categories.some((value) => ["sc", "st", "obc"].includes(value))) {
+    const labels = categories
+      .filter((value) => ["sc", "st", "obc"].includes(value))
+      .map((value) => value.toUpperCase())
+      .join(" / ");
+    add(
+      docs,
+      "Caste / community certificate",
+      "criteria",
+      `Restricted to ${labels} applicants`,
+    );
+  }
+
+  if (categories.includes("minority")) {
+    add(
+      docs,
+      "Minority certificate",
+      "criteria",
+      "Restricted to applicants from notified minority communities",
+    );
+  }
+
+  if (scheme.max_annual_income != null) {
+    add(
+      docs,
+      "Income certificate",
+      "criteria",
+      "The scheme applies a family income limit",
+    );
+  }
+
+  if (scheme.min_age != null || scheme.max_age != null) {
+    add(
+      docs,
+      "Age proof (birth certificate / Class 10 certificate)",
+      "criteria",
+      "The scheme has an age requirement",
+    );
+  }
+
+  if (scheme.residence === "rural" || scheme.residence === "urban") {
+    add(
+      docs,
+      "Domicile / residence certificate",
+      "criteria",
+      `Restricted to ${scheme.residence} residents`,
+    );
+  } else if (scheme.level === "state" && scheme.state_name) {
+    add(
+      docs,
+      "Domicile / residence certificate",
+      "criteria",
+      `State scheme for residents of ${scheme.state_name}`,
+    );
+  }
+
+  if (occupations.includes("farmer")) {
+    add(
+      docs,
+      "Land records (khatauni / 7-12 / patta)",
+      "criteria",
+      "The applicant must be a farmer and may need to prove landholding",
+    );
+  }
+
+  if (occupations.includes("student") || beneficiaryTypes.includes("students")) {
+    add(
+      docs,
+      "Bonafide / student certificate",
+      "criteria",
+      "The applicant must be a student",
+    );
+  }
+
+  if (
+    occupations.includes("entrepreneur") ||
+    beneficiaryTypes.includes("msmes") ||
+    beneficiaryTypes.includes("startups")
+  ) {
+    add(
+      docs,
+      "Udyam / MSME registration",
+      "criteria",
+      "The applicant must be a registered enterprise, startup or MSME",
+    );
+  }
+
+  if (occupations.includes("worker")) {
+    add(
+      docs,
+      "Employment / worker registration card",
+      "criteria",
+      "The applicant must be a registered worker",
+    );
+  }
+
+  if (beneficiaryTypes.includes("institutions") || beneficiaryTypes.includes("researchers")) {
+    add(
+      docs,
+      "Institution registration / authorisation letter",
+      "criteria",
+      "The applicant must be a recognised institution or research body",
+    );
+  }
+
+  if (MONEY_RE.test(text)) {
+    add(
+      docs,
+      "Bank passbook / account details",
+      "criteria",
+      "Monetary benefits are paid into the applicant's bank account",
+    );
+  }
+
+  if (isCitizenFacing) {
+    add(
+      docs,
+      "Passport-size photograph",
+      "criteria",
+      "Standard attachment for scheme application forms",
+    );
+  }
+
+  // --- Documents explicitly named in the scheme's written text ---
+
+  for (const { label, pattern } of TEXT_PATTERNS) {
+    if (!pattern.test(text)) continue;
+    const existing = docs.find((doc) => doc.label === label);
+    if (existing) {
+      existing.source = "text";
+      existing.reason = "Mentioned in the scheme's eligibility text";
+      continue;
+    }
+    docs.push({
+      label,
+      source: "text",
+      reason: "Mentioned in the scheme's eligibility text",
+    });
+  }
+
+  return docs;
 }

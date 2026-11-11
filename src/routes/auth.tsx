@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,23 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+
+  // A full page load after authentication avoids a router-invalidate race:
+  // `onAuthStateChange` fires while the sign-in page is still mounted, which
+  // could leave the app on /auth (or on a dashboard rendered before the session
+  // token was attached, showing zero counts).
+  const enterPortal = () => window.location.replace("/gov");
+
+  // Anyone who is already signed in should go straight to the workspace.
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (active && data.user) window.location.replace("/gov");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const postJson = async (url: string, body: unknown) => {
     const res = await fetch(url, {
@@ -80,7 +96,7 @@ function AuthPage() {
           return;
         }
         toast.success("Welcome back, Officer!");
-        navigate({ to: "/gov" });
+        enterPortal();
         return;
       }
 
@@ -108,7 +124,7 @@ function AuthPage() {
       }
 
       toast.success("Officer account ready — you are signed in.");
-      navigate({ to: "/gov" });
+      enterPortal();
     } catch {
       toast.error("Network problem. Check your connection and try again.");
     } finally {
@@ -139,7 +155,7 @@ function AuthPage() {
       }
 
       toast.success("Signed in as Demo Governance Officer");
-      navigate({ to: "/gov" });
+      enterPortal();
     } finally {
       setLoading(false);
     }

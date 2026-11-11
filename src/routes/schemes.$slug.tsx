@@ -1,7 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { schemeQuery } from "@/lib/queries";
-import { extractDocuments } from "@/lib/documents";
+import { documentsForScheme } from "@/lib/documents";
+import { SchemeFeedback } from "@/components/SchemeFeedback";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -69,7 +70,15 @@ function SchemePage() {
     }
   })();
 
-  const documents = extractDocuments(s.eligibility, s.benefits, s.summary);
+  const documents = documentsForScheme(s);
+
+  // Benefits are stored as free text with "- " bullets and line breaks. Split
+  // them so the section renders as a readable checklist instead of one wall of
+  // text.
+  const benefitLines = (s.benefits ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
 
   const requirements = [
     {
@@ -255,7 +264,20 @@ function SchemePage() {
               <CheckCircle2 className="h-5 w-5 text-primary" />
               Key Support & Benefits
             </h2>
-            <p className="text-sm leading-relaxed text-foreground/90 font-medium">{s.benefits}</p>
+            {benefitLines.length > 1 ? (
+              <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                {benefitLines.map((line, index) => (
+                  <li key={`${index}-${line.slice(0, 24)}`} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-relaxed text-foreground/90 font-medium">
+                {benefitLines[0] ?? s.benefits ?? "Benefit details are not available for this scheme."}
+              </p>
+            )}
           </section>
 
           {/* Eligibility Requirements */}
@@ -324,18 +346,34 @@ function SchemePage() {
               <ul className="grid gap-2 sm:grid-cols-2 text-xs">
                 {documents.map((doc) => (
                   <li
-                    key={doc}
+                    key={doc.label}
                     className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3"
                   >
                     <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                    <span className="text-muted-foreground">{doc}</span>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-foreground">{doc.label}</span>
+                        <span
+                          className={
+                            doc.source === "text"
+                              ? "rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400"
+                              : "rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary"
+                          }
+                        >
+                          {doc.source === "text" ? "In scheme text" : "Eligibility rule"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        {doc.reason}
+                      </p>
+                    </div>
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="rounded-lg border border-dashed bg-muted/30 p-4 space-y-1">
                 <p className="text-sm font-medium text-foreground">
-                  No document checklist is stored for this scheme.
+                  No specific documents could be derived for this scheme.
                 </p>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Check the written eligibility details above and the official portal for the exact
@@ -345,10 +383,13 @@ function SchemePage() {
             )}
 
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Detected from this scheme&apos;s written eligibility text. The official notification
-              and portal are the authoritative source.
+              Built from this scheme&apos;s written text and its structured eligibility rules
+              (category, BPL, disability, age, residence, occupation and benefit type). The official
+              notification and portal are the authoritative source.
             </p>
           </section>
+
+          <SchemeFeedback schemeId={s.id} schemeTitle={s.title} />
         </div>
 
         {/* Sidebar Action Card */}

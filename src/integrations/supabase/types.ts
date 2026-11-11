@@ -321,6 +321,41 @@ export type Database = {
           },
         ]
       }
+      scheme_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          name: string | null
+          rating: number
+          scheme_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          rating: number
+          scheme_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          rating?: number
+          scheme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheme_feedback_scheme_id_fkey"
+            columns: ["scheme_id"]
+            isOneToOne: false
+            referencedRelation: "schemes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schemes: {
         Row: {
           beneficiary_types: string[]
