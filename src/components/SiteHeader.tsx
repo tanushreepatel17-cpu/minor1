@@ -54,7 +54,7 @@ export function SiteHeader() {
 
         {/* Desktop Nav */}
         <nav className="hidden items-center gap-1 md:flex">
-          <Link to="/schemes" className={link} activeProps={active}>
+          <Link to="/schemes" className={link} activeProps={active} preload="intent">
             <Compass className="h-4 w-4" />
             Schemes
           </Link>
@@ -121,6 +121,7 @@ export function SiteHeader() {
             to="/schemes"
             className={link}
             activeProps={active}
+            preload="intent"
             onClick={() => setMobileMenuOpen(false)}
           >
             <Compass className="h-4 w-4" />
