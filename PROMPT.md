@@ -62,3 +62,4 @@ Use this file as a copy-paste brief when handing the project to another develope
 | `/eligibility` → **Save Profile & Register** | Saves the profile and shows the registration success panel |
 | `/auth` → **1-Click Demo Officer Login** | Signs in and opens `/gov` |
 | `/auth` → **Register demo account** → submit | Account is created and signed in immediately; no confirmation email, no rate limit |
+| `/assistant` → ask a question | Streaming starts immediately; the first words appear in about 1–3 s. Only the matching schemes are sent to the model, and if the provider is slow or rate-limited the grounded local engine answers instead |
