@@ -6,7 +6,7 @@ import { getGuestKey } from "@/lib/guest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Lock, MessageSquare, Star } from "lucide-react";
+import { CheckCircle2, MessageSquare, Star, Users } from "lucide-react";
 
 type FeedbackRow = {
   id: string;
@@ -14,6 +14,7 @@ type FeedbackRow = {
   rating: number;
   comment: string | null;
   created_at: string;
+  user_id: string | null;
 };
 
 type FeedbackStats = {
@@ -22,20 +23,20 @@ type FeedbackStats = {
 };
 
 /*
- * Only the signed-in user's own feedback is returned: row-level security in
- * `scheme_feedback` matches `user_id` (signed in) or the `x-guest-key` header
- * (guest). The average rating is fetched separately as an anonymous aggregate,
- * so no one's comments are exposed.
+ * Feedback is public: every visitor can read all reviews for a scheme, so
+ * people can see what others found useful before applying. Insert authorship
+ * is still recorded (`user_id` for signed-in users, a browser key for guests)
+ * and enforced by row-level security.
  */
-const myFeedbackQuery = (schemeId: string) => ({
-  queryKey: ["scheme_feedback", "mine", schemeId],
+const feedbackListQuery = (schemeId: string) => ({
+  queryKey: ["scheme_feedback", "list", schemeId],
   queryFn: async (): Promise<FeedbackRow[]> => {
     const { data, error } = await supabase
       .from("scheme_feedback")
-      .select("id,name,rating,comment,created_at")
+      .select("id,name,rating,comment,created_at,user_id")
       .eq("scheme_id", schemeId)
       .order("created_at", { ascending: false })
-      .limit(25);
+      .limit(50);
     if (error) throw error;
     return data ?? [];
   },
@@ -81,7 +82,7 @@ export function SchemeFeedback({
   schemeTitle: string;
 }) {
   const queryClient = useQueryClient();
-  const { data: mine = [], isLoading, isError } = useQuery(myFeedbackQuery(schemeId));
+  const { data: reviews = [], isLoading, isError } = useQuery(feedbackListQuery(schemeId));
   const { data: stats } = useQuery(feedbackStatsQuery(schemeId));
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -121,10 +122,10 @@ export function SchemeFeedback({
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["scheme_feedback", "mine", schemeId] }),
+        queryClient.invalidateQueries({ queryKey: ["scheme_feedback", "list", schemeId] }),
         queryClient.invalidateQueries({ queryKey: ["scheme_feedback", "stats", schemeId] }),
       ]);
-      toast.success("Thanks! Your feedback has been recorded.");
+      toast.success("Thanks! Your public feedback has been posted.");
       setRating(0);
       setHovered(0);
       setName("");
@@ -147,11 +148,11 @@ export function SchemeFeedback({
         <div>
           <h2 id="feedback-heading" className="text-xl font-bold flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Your Feedback
+            Community Feedback
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground flex items-start gap-1.5">
-            <Lock className="mt-0.5 h-3 w-3 shrink-0" />
-            Private to you — only your own feedback is shown on this page.
+            <Users className="mt-0.5 h-3 w-3 shrink-0" />
+            Public — reviews from citizens and officers are visible to everyone.
           </p>
         </div>
         {stats && stats.review_count > 0 && (
@@ -239,8 +240,8 @@ export function SchemeFeedback({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] text-muted-foreground">
             {userId
-              ? "Saved to your account. Only you can see it."
-              : "No account needed — this browser is remembered so only you see it."}
+              ? "Posted publicly under your review name."
+              : "Posted publicly. No account needed — add your name if you'd like credit."}
           </p>
           <Button
             type="submit"
@@ -255,32 +256,40 @@ export function SchemeFeedback({
       </form>
 
       <div className="space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Your previous feedback
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            All public feedback
+          </h3>
+          {reviews.length > 0 && (
+            <span className="text-[11px] text-muted-foreground">
+              {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+            </span>
+          )}
+        </div>
 
-        {isLoading && <p className="text-xs text-muted-foreground">Loading your feedback...</p>}
+        {isLoading && <p className="text-xs text-muted-foreground">Loading feedback...</p>}
 
         {isError && (
           <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-            Your feedback could not be loaded right now. You can still submit a new review.
+            Feedback could not be loaded right now. You can still submit a new review.
           </p>
         )}
 
-        {!isLoading && !isError && mine.length === 0 && (
+        {!isLoading && !isError && reviews.length === 0 && (
           <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-            You have not reviewed this scheme yet. Your note stays private to you.
+            No public feedback yet. Be the first to share how useful this scheme page was.
           </p>
         )}
 
-        {mine.length > 0 && (
+        {reviews.length > 0 && (
           <ul className="divide-y rounded-xl border bg-card">
-            {mine.slice(0, 6).map((row) => (
+            {reviews.map((row) => (
               <li key={row.id} className="p-3.5 space-y-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-foreground">
-                      {row.name?.trim() || (userId ? "You" : "Anonymous (you)")}
+                      {row.name?.trim() || "Anonymous"}
+                      {row.user_id && row.user_id === userId ? " (you)" : ""}
                     </span>
                     <Stars value={row.rating} />
                   </div>
@@ -300,9 +309,9 @@ export function SchemeFeedback({
           </ul>
         )}
 
-        {mine.length > 6 && (
+        {reviews.length === 50 && (
           <p className="text-[11px] text-muted-foreground">
-            Showing your 6 most recent reviews of this scheme.
+            Showing the 50 most recent public reviews.
           </p>
         )}
       </div>

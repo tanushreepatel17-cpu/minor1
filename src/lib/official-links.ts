@@ -1,46 +1,45 @@
 /**
  * Official links for a scheme.
  *
- * Only a handful of records store a direct `official_url`, so every scheme
- * also gets a link to the Government of India's official MyScheme finder,
- * pre-filled with the scheme title. That keeps a working official destination
- * on every page without inventing URLs.
+ * NAGSI only links to the particular scheme's own official destination
+ * (`official_url`) — the department portal, application form or official
+ * notification. It never substitutes a third-party aggregator or a generic
+ * search page.
  */
 
 export type OfficialLink = {
   label: string;
   url: string;
   description: string;
-  kind: "portal" | "search";
+  kind: "portal";
 };
 
 type LinkableScheme = {
-  title: string;
   official_url?: string | null;
-  level?: string | null;
-  state_name?: string | null;
 };
 
-export function officialLinksForScheme(scheme: LinkableScheme): OfficialLink[] {
-  const links: OfficialLink[] = [];
+function safeHttpUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
-  const portal = scheme.official_url?.trim();
-  if (portal) {
-    links.push({
+export function officialLinksForScheme(scheme: LinkableScheme): OfficialLink[] {
+  const portal = safeHttpUrl(scheme.official_url);
+  if (!portal) return [];
+
+  return [
+    {
       label: "Official scheme portal",
       url: portal,
       description: "Apply or read the official notification on the department's own website.",
       kind: "portal",
-    });
-  }
-
-  const where = scheme.level === "state" && scheme.state_name ? ` in ${scheme.state_name}` : "";
-  links.push({
-    label: "Search this scheme on MyScheme",
-    url: `https://www.myscheme.gov.in/search?q=${encodeURIComponent(scheme.title)}`,
-    description: `Official Government of India scheme finder${where} — application forms and notifications.`,
-    kind: "search",
-  });
-
-  return links;
+    },
+  ];
 }

@@ -62,17 +62,19 @@ function SchemePage() {
     s.slug.toLowerCase().includes("ai") ||
     s.sector === "Cross-sector";
 
-  const host = (() => {
-    if (!s.official_url) return "";
-    try {
-      return new URL(s.official_url).hostname;
-    } catch {
-      return s.official_url;
-    }
-  })();
-
   const documents = documentsForScheme(s);
   const officialLinks = officialLinksForScheme(s);
+  const primaryOfficialLink = officialLinks[0];
+
+  const host = (() => {
+    const url = primaryOfficialLink?.url;
+    if (!url) return "";
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  })();
 
   // Benefits are stored as free text with "- " bullets and line breaks. Split
   // them so the section renders as a readable checklist instead of one wall of
@@ -340,34 +342,33 @@ function SchemePage() {
               </span>
             </div>
 
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {officialLinks.map((link) => (
-                <li key={link.url}>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex h-full items-start gap-2.5 rounded-xl border bg-muted/40 p-3.5 transition-colors hover:border-primary hover:bg-primary/5"
-                  >
-                    <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span className="space-y-1">
-                      <span className="block text-xs font-semibold text-foreground">
-                        {link.label}
+            {officialLinks.length > 0 ? (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {officialLinks.map((link) => (
+                  <li key={link.url}>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-full items-start gap-2.5 rounded-xl border bg-muted/40 p-3.5 transition-colors hover:border-primary hover:bg-primary/5"
+                    >
+                      <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="space-y-1">
+                        <span className="block text-xs font-semibold text-foreground">
+                          {link.label}
+                        </span>
+                        <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                          {link.description}
+                        </span>
                       </span>
-                      <span className="block text-[11px] leading-relaxed text-muted-foreground">
-                        {link.description}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-
-            {!s.official_url && (
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                A direct department portal is not stored for this scheme, so the official MyScheme
-                search above is the verified route to the application form and notification. NAGSI
-                never collects applications or fees.
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-lg border border-dashed bg-muted/30 p-3.5 text-[11px] leading-relaxed text-muted-foreground">
+                No direct official portal is stored for this scheme yet. NAGSI does not invent
+                links — check the official notification or the concerned department&apos;s website.
               </p>
             )}
           </section>
@@ -446,14 +447,15 @@ function SchemePage() {
           <div className="rounded-2xl border bg-card p-6 shadow-card space-y-5 lg:sticky lg:top-24">
             <h3 className="font-bold text-base border-b pb-3">Official Application</h3>
 
-            {s.official_url ? (
+            {primaryOfficialLink ? (
               <div className="space-y-4">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Applications must be filed directly on the designated government portal. NAGSI does not process or accept grant submissions.
+                  Applications must be filed directly on the concerned department&apos;s official
+                  portal. NAGSI does not process or accept applications or fees.
                 </p>
 
                 <Button asChild size="lg" className="w-full gap-2 shadow-sm font-semibold">
-                  <a href={s.official_url} target="_blank" rel="noreferrer">
+                  <a href={primaryOfficialLink.url} target="_blank" rel="noreferrer">
                     Apply on Official Portal
                     <ExternalLink className="h-4 w-4" />
                   </a>
@@ -464,33 +466,17 @@ function SchemePage() {
                     <strong>Portal:</strong> {host}
                   </p>
                   <p>
-                    <strong>Verified:</strong> {s.last_verified || "Verified via official notification"}
+                    <strong>Verified:</strong>{" "}
+                    {s.last_verified || "Verified via official notification"}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                A direct department portal is not stored for this scheme. Use the official MyScheme
-                search below to reach the application form and notification.
+              <p className="rounded-xl border border-dashed bg-muted/30 p-3.5 text-[11px] leading-relaxed text-muted-foreground">
+                No direct official portal is stored for this scheme yet. NAGSI does not invent
+                links — check the official notification or the concerned department&apos;s website.
               </p>
             )}
-
-            {/* Every scheme keeps a working official destination. */}
-            {officialLinks
-              .filter((link) => link.kind === "search")
-              .map((link) => (
-                <Button
-                  key={link.url}
-                  asChild
-                  variant={s.official_url ? "outline" : "default"}
-                  className="w-full gap-2 text-xs font-semibold"
-                >
-                  <a href={link.url} target="_blank" rel="noreferrer">
-                    {link.label}
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </Button>
-              ))}
 
             <div className="pt-4 border-t space-y-3">
               <div className="rounded-xl border border-saffron/30 bg-saffron/10 p-3.5 space-y-2">

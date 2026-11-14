@@ -55,8 +55,8 @@ Use this file as a copy-paste brief when handing the project to another develope
 | Check | Expected |
 | --- | --- |
 | `http://localhost:8080/schemes` | Page shell renders instantly, then shows the first **48** of **3,540** schemes in about 2–4 s (4 parallel requests). **Show more schemes** adds 48 at a time; search and filters run client-side |
-| Scheme detail page | Shows all 8 structured requirements, written eligibility text, an **Official Links** block (direct portal when stored + the official MyScheme search), a **Documents Required** checklist, formatted **Key Support & Benefits**, and a private **Your Feedback** form |
-| Scheme detail page → **Your Feedback** | Submit a star rating and optional comment; only the author's own reviews are listed and everyone sees an anonymous average. A guest's feedback is tied to that browser; another visitor sees none of it |
+| Scheme detail page | Shows all 8 structured requirements, written eligibility text, an **Official Links** block that opens the scheme's own department portal (or states clearly when no portal is stored), a **Documents Required** checklist, formatted **Key Support & Benefits**, and public **Feedback** |
+| Scheme detail page → **Feedback** | Submit a star rating and optional comment; every visitor sees all reviews (the author's own is marked **you**) and the public average. NAGSI never shows email addresses or private account data |
 | `/gov` after officer sign-in | Dashboard shows the live counts (4 AI systems, 2 open incidents) for every new officer account |
 | `/eligibility` → fill profile → **Analyze My Eligibility** | Scrolls to **Recommended Schemes for You** and lists matches in batches of 24 |
 | `/eligibility` → **Save Profile & Register** | Saves the profile and shows the registration success panel |

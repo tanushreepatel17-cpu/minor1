@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { eligibilitySchemesQuery } from "@/lib/queries";
@@ -110,20 +110,24 @@ const PRESETS: { label: string; profile: Profile }[] = [
   },
 ];
 
+const BLANK_PROFILE: Profile = {
+  age: null,
+  gender: "",
+  annualIncome: null,
+  socialCategory: "",
+  occupation: "",
+  residence: "",
+  bpl: false,
+  disability: false,
+};
+
+type ProfileState = "guest" | "loading" | "saved";
+
 function Eligibility() {
   // Load on the client so the page paints immediately instead of waiting for
   // all 3,540 scheme rows during SSR.
   const { data = [], isLoading, isError, refetch } = useQuery(eligibilitySchemesQuery);
-  const [p, setP] = useState<Profile>({
-    age: null,
-    gender: "",
-    annualIncome: null,
-    socialCategory: "",
-    occupation: "",
-    residence: "",
-    bpl: false,
-    disability: false,
-  });
+  const [p, setP] = useState<Profile>(BLANK_PROFILE);
 
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -131,7 +135,92 @@ function Eligibility() {
   const [analyzed, setAnalyzed] = useState(false);
   const [visibleCount, setVisibleCount] = useState(24);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [profileState, setProfileState] = useState<ProfileState>("guest");
+  const loadedUserIdRef = useRef<string | null | undefined>(undefined);
   const resultsRef = useRef<HTMLElement | null>(null);
+
+  // "For You" is personal: a signed-in visitor sees only the profile saved to
+  // their own account. Guests start blank, and every sign-in/sign-out resets
+  // the form first so the previous user's details can never flash or persist.
+  useEffect(() => {
+    let active = true;
+
+    const clearForm = () => {
+      setP(BLANK_PROFILE);
+      setFullName("");
+      setErrors({});
+      setAnalyzed(false);
+      setSubmitted(false);
+      setVisibleCount(24);
+      setProfileState("guest");
+    };
+
+    const loadFor = async (userId: string | null, force = false) => {
+      if (!active) return;
+      if (userId === loadedUserIdRef.current && !force) return;
+      loadedUserIdRef.current = userId;
+
+      if (!userId) {
+        clearForm();
+        return;
+      }
+
+      setProfileState("loading");
+      const { data, error } = await supabase
+        .from("citizen_profiles")
+        .select(
+          "full_name,age,gender,annual_income,social_category,occupation,residence,bpl,disability",
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (error || !data) {
+        clearForm();
+        setProfileState("guest");
+        return;
+      }
+
+      setFullName(data.full_name ?? "");
+      setP({
+        age: data.age ?? null,
+        gender: (data.gender ?? "") as Profile["gender"],
+        annualIncome: data.annual_income ?? null,
+        socialCategory: (data.social_category ?? "") as Profile["socialCategory"],
+        occupation: (data.occupation ?? "") as Profile["occupation"],
+        residence: (data.residence ?? "") as Profile["residence"],
+        bpl: Boolean(data.bpl),
+        disability: Boolean(data.disability),
+      });
+      setErrors({});
+      setVisibleCount(24);
+      // Show matches for their own saved data immediately.
+      setAnalyzed(true);
+      setSubmitted(true);
+      setProfileState("saved");
+    };
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => loadFor(data.session?.user.id ?? null, true))
+      .catch(() => clearForm());
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
+      const userId = session?.user.id ?? null;
+      if (event === "USER_UPDATED" && userId === loadedUserIdRef.current) return;
+      // Reset before loading the new account's data.
+      clearForm();
+      loadedUserIdRef.current = undefined;
+      void loadFor(userId, true);
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((x) => ({ ...x, [k]: v }));
   const num = (v: string) => (v === "" ? null : Number(v));
@@ -205,6 +294,7 @@ function Eligibility() {
       await saveProfile();
       setSubmitted(true);
       setAnalyzed(true);
+      setProfileState("saved");
       toast.success(
         matches.length
           ? `Registration complete! We found ${matches.length} schemes for your profile.`
@@ -221,20 +311,16 @@ function Eligibility() {
   };
 
   const resetProfile = () => {
-    setP({
-      age: null,
-      gender: "",
-      annualIncome: null,
-      socialCategory: "",
-      occupation: "",
-      residence: "",
-      bpl: false,
-      disability: false,
-    });
+    setP(BLANK_PROFILE);
+    setFullName("");
     setErrors({});
     setAnalyzed(false);
     setSubmitted(false);
     setVisibleCount(24);
+    setProfileState("guest");
+    // Clearing the form must also stop the saved profile from being treated as
+    // the current source, otherwise a later re-render could restore it.
+    loadedUserIdRef.current = undefined;
   };
 
   const results = useMemo(() => data.map((s) => ({ s, ...matchScheme(s, p) })), [data, p]);
@@ -280,8 +366,20 @@ function Eligibility() {
           Find Schemes For You
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your details to register and get personalised scheme matches. Your profile is saved securely to your account.
+          Enter your own details to get personalised scheme matches. Signed-in visitors see the profile
+          saved to their account; guests start with a blank form.
         </p>
+        {profileState === "loading" && (
+          <p className="mt-2 text-xs font-medium text-muted-foreground">
+            Loading your saved profile…
+          </p>
+        )}
+        {profileState === "saved" && loadedUserIdRef.current && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Showing the profile saved to your account — edit any field to refresh your matches.
+          </p>
+        )}
 
         {/* Quick Presets */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
