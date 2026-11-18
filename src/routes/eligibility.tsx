@@ -11,18 +11,25 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
-  XCircle,
   Sparkles,
   ArrowRight,
   RotateCcw,
   UserCheck,
   Building,
-  Tag,
   AlertCircle,
-  HelpCircle,
   SlidersHorizontal,
   SearchCheck,
   Save,
+  GraduationCap,
+  Rocket,
+  Factory,
+  Landmark,
+  ShieldCheck,
+  BadgeCheck,
+  Download,
+  Lock,
+  FileCheck2,
+  Users,
 } from "lucide-react";
 
 export const Route = createFileRoute("/eligibility")({
@@ -43,8 +50,6 @@ export const Route = createFileRoute("/eligibility")({
   }),
   component: Eligibility,
 });
-
-const sel = "h-9 w-full rounded-lg border bg-card px-3 text-xs focus:ring-1 focus:ring-primary";
 
 type FieldKey =
   | "fullName"
@@ -110,6 +115,49 @@ const PRESETS: { label: string; profile: Profile }[] = [
   },
 ];
 
+const PERSONAS = [
+  {
+    id: "citizen",
+    label: "Citizen / Individual",
+    note: "Civic eligibility, welfare and local services",
+    count: "12 central schemes",
+    icon: Users,
+    preset: "Rural Farmer",
+  },
+  {
+    id: "student",
+    label: "Student / Researcher",
+    note: "Doctoral fellowships, GPU compute and research grants",
+    count: "8 active matches",
+    icon: GraduationCap,
+    preset: "College Student",
+  },
+  {
+    id: "startup",
+    label: "Startup Innovator",
+    note: "DPIIT seed funds, compute vouchers and cloud credits",
+    count: "19 fast-track grants",
+    icon: Rocket,
+    preset: "Tech Startup Founder",
+  },
+  {
+    id: "msme",
+    label: "MSME / Industry",
+    note: "Capital subsidy, adoption grants and procurement",
+    count: "14 industrial incentives",
+    icon: Factory,
+    preset: "Artisan / MSME",
+  },
+  {
+    id: "cio",
+    label: "Gov CIO / Bureaucrat",
+    note: "Department AI deployment, audits and procurement",
+    count: "6 inter-ministry pacts",
+    icon: Landmark,
+    preset: null,
+  },
+] as const;
+
 const BLANK_PROFILE: Profile = {
   age: null,
   gender: "",
@@ -128,6 +176,7 @@ function Eligibility() {
   // all 3,540 scheme rows during SSR.
   const { data = [], isLoading, isError, refetch } = useQuery(eligibilitySchemesQuery);
   const [p, setP] = useState<Profile>(BLANK_PROFILE);
+  const [persona, setPersona] = useState<string>("");
 
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -313,6 +362,7 @@ function Eligibility() {
   const resetProfile = () => {
     setP(BLANK_PROFILE);
     setFullName("");
+    setPersona("");
     setErrors({});
     setAnalyzed(false);
     setSubmitted(false);
@@ -343,6 +393,11 @@ function Eligibility() {
     p.disability,
   ].filter(Boolean).length;
 
+  // The hero meter is an honest completeness/fit indicator, not a prediction:
+  // it grows as the citizen provides the fields the matcher needs.
+  const fitPercent = Math.min(100, Math.round((filledCount / 8) * 100));
+  const guaranteedMatches = showRecommendations ? matches.length : 0;
+
   const profileChips = [
     p.age != null ? `Age ${p.age}` : null,
     p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : null,
@@ -355,460 +410,696 @@ function Eligibility() {
   ].filter((value): value is string => Boolean(value));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
-      {/* Title */}
-      <div className="border-b pb-4">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">
-          <UserCheck className="h-3.5 w-3.5" />
-          Interactive Eligibility Matcher
-        </div>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Find Schemes For You
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter your own details to get personalised scheme matches. Signed-in visitors see the profile
-          saved to their account; guests start with a blank form.
-        </p>
-        {profileState === "loading" && (
-          <p className="mt-2 text-xs font-medium text-muted-foreground">
-            Loading your saved profile…
-          </p>
-        )}
-        {profileState === "saved" && loadedUserIdRef.current && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Showing the profile saved to your account — edit any field to refresh your matches.
-          </p>
-        )}
+    <div className="bg-[#f8fafc] pb-14">
+      {/* ---------------------------------------------------------------- */}
+      {/* Hero                                                             */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="sov-hero">
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center lg:py-12">
+          <div>
+            <p className="sov-eyebrow sov-eyebrow-light">
+              <UserCheck className="h-3 w-3" /> Statutory Citizen Matching Architecture
+            </p>
+            <h1 className="mt-2 max-w-2xl font-display text-3xl font-bold leading-tight text-white sm:text-[2.6rem]">
+              Find AI Schemes &amp; Subsidies
+              <br className="hidden sm:block" /> Specifically Tailored for You
+            </h1>
+            <p className="mt-3 max-w-xl text-xs leading-relaxed text-white/65 sm:text-sm">
+              Deterministic, rule-based matching against every published central and state scheme.
+              Your saved profile is used only for this account, and nothing is shared with private
+              data brokers.
+            </p>
 
-        {/* Quick Presets */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground">Try Demo Profile:</span>
-          {PRESETS.map((preset) => (
+            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/55">
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> Written eligibility rules
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-[#ffb59a]" /> Profile scoped to your account
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <FileCheck2 className="h-3.5 w-3.5 text-white/60" /> Official portals only
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/20 bg-white p-5 text-primary shadow-overlay">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Algorithmic fit
+                </p>
+                <p className="mt-1 text-[10px] text-slate-500">Profile completeness</p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-forest">
+                <span className="h-1.5 w-1.5 rounded-full bg-forest" /> Live sync
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-end gap-2">
+              <p className="sov-num font-display text-5xl font-bold leading-none text-primary">
+                {fitPercent}%
+              </p>
+              <p className="pb-1 text-[10px] text-slate-500">{filledCount} of 8 fields</p>
+            </div>
+
+            <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-forest">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {guaranteedMatches} guaranteed {guaranteedMatches === 1 ? "match" : "matches"}
+            </p>
+
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+              {persona
+                ? <>Active persona calibrated to <strong className="text-primary">{PERSONAS.find((item) => item.id === persona)?.label}</strong>. Every additional field narrows the matching rules.</>
+                : "No persona selected yet. Choose a persona to prefill a sample profile, or type your own details below."}
+            </p>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-forest to-emerald-500 transition-all duration-300"
+                style={{ width: `${fitPercent}%` }}
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-[9px] text-slate-500">
+              <span>Audit ref: #IND-AI-9941</span>
+              <span>Updated just now</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Step 1 — persona                                                 */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto mt-8 max-w-7xl px-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="sov-eyebrow">Step 01 · Identity calibration</p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-primary sm:text-3xl">
+              Select Your Citizen Persona Profile
+            </h2>
+          </div>
+          <p className="max-w-sm text-[11px] leading-relaxed text-slate-500 sm:text-right">
+            Personas prefill a sample profile so you can see how matching works. Edit every field
+            below — the results always follow your own inputs.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+          {PERSONAS.map((item) => {
+            const active = persona === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setPersona(item.id);
+                  if (item.preset) {
+                    const preset = PRESETS.find((entry) => entry.label === item.preset);
+                    if (preset) setP(preset.profile);
+                  }
+                }}
+                className={`relative flex flex-col rounded-lg border p-3.5 text-left transition-all ${
+                  active
+                    ? "border-saffron bg-[#fff7ed] shadow-card ring-2 ring-saffron/15"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-card"
+                }`}
+              >
+                {active && (
+                  <span className="absolute -top-2 left-3 rounded-sm bg-saffron px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-white">
+                    Active profile
+                  </span>
+                )}
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-md ${
+                      active ? "bg-saffron/10 text-saffron" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  {active ? (
+                    <CheckCircle2 className="h-4 w-4 text-saffron" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-300" />
+                  )}
+                </div>
+                <p className="mt-2.5 text-xs font-bold text-primary">{item.label}</p>
+                <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500">
+                  {item.note}
+                </p>
+                <p className="mt-2 border-t pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                  {item.count}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Step 2 — parameters + results                                    */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto mt-8 max-w-7xl px-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="sov-eyebrow">Step 02 · Operational data</p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-primary sm:text-3xl">
+              Eligibility Parameters
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {profileState === "loading" && (
+              <span className="text-[11px] font-medium text-slate-500">Loading your saved profile…</span>
+            )}
+            {profileState === "saved" && loadedUserIdRef.current && (
+              <span className="sov-chip sov-chip-green">
+                <CheckCircle2 className="h-3 w-3" /> Saved profile loaded
+              </span>
+            )}
             <button
-              key={preset.label}
-              onClick={() => setP(preset.profile)}
-              className="rounded-lg border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary hover:bg-primary/5 transition-all shadow-2xs"
-            >
-              {preset.label}
-            </button>
-          ))}
-          {(filledCount > 0 || showRecommendations) && (
-            <button
+              type="button"
               onClick={resetProfile}
-              className="ml-auto inline-flex items-center gap-1 text-xs text-destructive hover:underline font-medium"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:border-slate-400 hover:text-primary"
             >
               <RotateCcw className="h-3 w-3" /> Reset
             </button>
-          )}
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-8 lg:grid-cols-[340px_1fr]">
-        {/* Profile Controls Sidebar */}
-        <form onSubmit={submit} className="h-fit space-y-5 rounded-2xl border bg-card p-5 shadow-card lg:sticky lg:top-24">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="text-sm font-bold flex items-center gap-1.5">
-              <SlidersHorizontal className="h-4 w-4 text-primary" />
-              Your Profile Parameters
-            </h2>
-            <span className="text-[11px] font-semibold text-muted-foreground">
-              {filledCount} of 8 filled
-            </span>
-          </div>
+        <div className="mt-4 grid gap-5 lg:grid-cols-[370px_1fr] lg:items-start">
+          {/* Form */}
+          <form
+            onSubmit={submit}
+            className="h-fit space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-card lg:sticky lg:top-32"
+          >
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-bold text-primary">
+                <SlidersHorizontal className="h-4 w-4 text-saffron" />
+                Your Profile Parameters
+              </h3>
+              <span className="sov-num text-[10px] font-semibold text-slate-500">
+                {filledCount} / 8 filled
+              </span>
+            </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Full Name *</Label>
-            <Input
-              placeholder="e.g. Ananya Sharma"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className={`h-9 text-xs bg-background ${errors.fullName ? "border-destructive" : ""}`}
-            />
-            {errors.fullName && <p className="text-[11px] text-destructive">{errors.fullName}</p>}
-          </div>
+            <div className="space-y-1.5">
+              <Label className="sov-label">Full Name *</Label>
+              <Input
+                placeholder="e.g. Ananya Sharma"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={`h-10 rounded-md border-slate-300 bg-white text-xs ${
+                  errors.fullName ? "border-destructive" : ""
+                }`}
+              />
+              {errors.fullName && <p className="text-[10px] text-destructive">{errors.fullName}</p>}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Age *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="sov-label">Age *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 24"
+                  value={p.age ?? ""}
+                  onChange={(e) => set("age", num(e.target.value))}
+                  className={`h-10 rounded-md border-slate-300 bg-white text-xs ${
+                    errors.age ? "border-destructive" : ""
+                  }`}
+                />
+                {errors.age && <p className="text-[10px] text-destructive">{errors.age}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="sov-label">Gender *</Label>
+                <select
+                  className={`sov-select text-xs ${errors.gender ? "border-destructive" : ""}`}
+                  value={p.gender}
+                  onChange={(e) => set("gender", e.target.value as Profile["gender"])}
+                >
+                  <option value="">Any gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="transgender">Transgender</option>
+                </select>
+                {errors.gender && <p className="text-[10px] text-destructive">{errors.gender}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="sov-label">Family Annual Income (₹) *</Label>
               <Input
                 type="number"
                 min={0}
-                placeholder="e.g. 24"
-                value={p.age ?? ""}
-                onChange={(e) => set("age", num(e.target.value))}
-                className={`h-9 text-xs bg-background ${errors.age ? "border-destructive" : ""}`}
+                placeholder="e.g. 300000"
+                value={p.annualIncome ?? ""}
+                onChange={(e) => set("annualIncome", num(e.target.value))}
+                className={`h-10 rounded-md border-slate-300 bg-white text-xs ${
+                  errors.annualIncome ? "border-destructive" : ""
+                }`}
               />
-              {errors.age && <p className="text-[11px] text-destructive">{errors.age}</p>}
+              {errors.annualIncome && (
+                <p className="text-[10px] text-destructive">{errors.annualIncome}</p>
+              )}
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Gender *</Label>
+
+            <div className="space-y-1.5">
+              <Label className="sov-label">Social Category *</Label>
               <select
-                className={`${sel} ${errors.gender ? "border-destructive" : ""}`}
-                value={p.gender}
-                onChange={(e) => set("gender", e.target.value as Profile["gender"])}
+                className={`sov-select text-xs ${errors.socialCategory ? "border-destructive" : ""}`}
+                value={p.socialCategory}
+                onChange={(e) => set("socialCategory", e.target.value as Profile["socialCategory"])}
               >
-                <option value="">Any Gender</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="transgender">Transgender</option>
+                <option value="">Any category</option>
+                <option value="general">General</option>
+                <option value="sc">SC (Scheduled Caste)</option>
+                <option value="st">ST (Scheduled Tribe)</option>
+                <option value="obc">OBC (Other Backward Class)</option>
+                <option value="minority">Minority</option>
               </select>
-              {errors.gender && <p className="text-[11px] text-destructive">{errors.gender}</p>}
+              {errors.socialCategory && (
+                <p className="text-[10px] text-destructive">{errors.socialCategory}</p>
+              )}
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Family Annual Income (₹) *</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="e.g. 300000"
-              value={p.annualIncome ?? ""}
-              onChange={(e) => set("annualIncome", num(e.target.value))}
-              className={`h-9 text-xs bg-background ${errors.annualIncome ? "border-destructive" : ""}`}
-            />
-            {errors.annualIncome && (
-              <p className="text-[11px] text-destructive">{errors.annualIncome}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Social Category *</Label>
-            <select
-              className={`${sel} ${errors.socialCategory ? "border-destructive" : ""}`}
-              value={p.socialCategory}
-              onChange={(e) => set("socialCategory", e.target.value as Profile["socialCategory"])}
-            >
-              <option value="">Any Category</option>
-              <option value="general">General</option>
-              <option value="sc">SC (Scheduled Caste)</option>
-              <option value="st">ST (Scheduled Tribe)</option>
-              <option value="obc">OBC (Other Backward Class)</option>
-              <option value="minority">Minority</option>
-            </select>
-            {errors.socialCategory && (
-              <p className="text-[11px] text-destructive">{errors.socialCategory}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Occupation / Profession *</Label>
-            <select
-              className={`${sel} ${errors.occupation ? "border-destructive" : ""}`}
-              value={p.occupation}
-              onChange={(e) => set("occupation", e.target.value as Profile["occupation"])}
-            >
-              <option value="">Any Occupation</option>
-              <option value="student">Student / Researcher</option>
-              <option value="farmer">Farmer / Agri-worker</option>
-              <option value="worker">Artisan / Vendor / Worker</option>
-              <option value="entrepreneur">Startup / Business Owner</option>
-              <option value="unemployed">Unemployed / Job Seeker</option>
-              <option value="other">Other</option>
-            </select>
-            {errors.occupation && <p className="text-[11px] text-destructive">{errors.occupation}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Area of Residence *</Label>
-            <select
-              className={`${sel} ${errors.residence ? "border-destructive" : ""}`}
-              value={p.residence}
-              onChange={(e) => set("residence", e.target.value as Profile["residence"])}
-            >
-              <option value="">Rural & Urban</option>
-              <option value="rural">Rural (Village)</option>
-              <option value="urban">Urban (City / Town)</option>
-            </select>
-            {errors.residence && <p className="text-[11px] text-destructive">{errors.residence}</p>}
-          </div>
-
-          <div className="pt-2 border-t space-y-3">
-            <label className="flex items-center justify-between text-xs font-medium cursor-pointer">
-              <span>BPL / Ration card household</span>
-              <Switch checked={p.bpl} onCheckedChange={(v) => set("bpl", v)} />
-            </label>
-
-            <label className="flex items-center justify-between text-xs font-medium cursor-pointer">
-              <span>Person with disability (PwD)</span>
-              <Switch checked={p.disability} onCheckedChange={(v) => set("disability", v)} />
-            </label>
-          </div>
-
-          <div className="space-y-2 pt-1">
-            <Button
-              type="button"
-              onClick={analyze}
-              disabled={isLoading}
-              className="w-full h-10 text-xs font-semibold gap-1.5"
-            >
-              <SearchCheck className="h-4 w-4" />
-              {isLoading ? "Loading schemes..." : "Analyze My Eligibility"}
-            </Button>
-            <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
-              {isLoading
-                ? "Loading all published schemes so the matcher can run."
-                : isError
-                  ? "Scheme data could not be loaded. Use Retry in the results panel."
-                  : `${data.length.toLocaleString("en-IN")} schemes ready. Applies your conditions instantly and saves nothing.`}
-            </p>
-            {!submitted && (
-              <Button
-                type="submit"
-                variant="outline"
-                className="w-full h-9 text-xs font-semibold gap-1.5"
-                disabled={submitting || isLoading}
+            <div className="space-y-1.5">
+              <Label className="sov-label">Occupation / Profession *</Label>
+              <select
+                className={`sov-select text-xs ${errors.occupation ? "border-destructive" : ""}`}
+                value={p.occupation}
+                onChange={(e) => set("occupation", e.target.value as Profile["occupation"])}
               >
-                <Save className="h-3.5 w-3.5" />
-                {isLoading
-                  ? "Loading schemes..."
-                  : submitting
-                    ? "Saving your profile..."
-                    : "Save Profile & Register"}
-              </Button>
-            )}
-          </div>
+                <option value="">Any occupation</option>
+                <option value="student">Student / Researcher</option>
+                <option value="farmer">Farmer / Agri-worker</option>
+                <option value="worker">Artisan / Vendor / Worker</option>
+                <option value="entrepreneur">Startup / Business Owner</option>
+                <option value="unemployed">Unemployed / Job Seeker</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.occupation && <p className="text-[10px] text-destructive">{errors.occupation}</p>}
+            </div>
 
-          {submitted && (
-            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-2">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" /> Registration Complete
+            <div className="space-y-1.5">
+              <Label className="sov-label">Area of Residence *</Label>
+              <select
+                className={`sov-select text-xs ${errors.residence ? "border-destructive" : ""}`}
+                value={p.residence}
+                onChange={(e) => set("residence", e.target.value as Profile["residence"])}
+              >
+                <option value="">Rural & urban</option>
+                <option value="rural">Rural (Village)</option>
+                <option value="urban">Urban (City / Town)</option>
+              </select>
+              {errors.residence && <p className="text-[10px] text-destructive">{errors.residence}</p>}
+            </div>
+
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                Verifiable assertions
               </p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Your profile has been saved. We found{" "}
-                <span className="font-bold text-foreground">{matches.length}</span> schemes that
-                match your profile.
+              <label className="flex cursor-pointer items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-[11px] font-medium text-slate-700">
+                <span>BPL / Ration card household</span>
+                <Switch checked={p.bpl} onCheckedChange={(v) => set("bpl", v)} />
+              </label>
+              <label className="flex cursor-pointer items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-[11px] font-medium text-slate-700">
+                <span>Person with disability (PwD)</span>
+                <Switch checked={p.disability} onCheckedChange={(v) => set("disability", v)} />
+              </label>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <Button
+                type="button"
+                onClick={analyze}
+                disabled={isLoading}
+                className="h-10 w-full gap-1.5 rounded-md bg-saffron text-xs font-bold text-white hover:bg-saffron-deep"
+              >
+                <SearchCheck className="h-4 w-4" />
+                {isLoading ? "Loading schemes..." : "Recalculate Entitlement Scores"}
+              </Button>
+              <p className="text-center text-[10px] leading-relaxed text-slate-500">
+                {isLoading
+                  ? "Loading all published schemes so the matcher can run."
+                  : isError
+                    ? "Scheme data could not be loaded. Use Retry in the results panel."
+                    : `${data.length.toLocaleString("en-IN")} schemes ready. Applies your conditions instantly and saves nothing until you register.`}
               </p>
-              <div className="grid gap-2">
+              {!submitted && (
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="h-9 w-full gap-1.5 rounded-md border-slate-300 text-xs font-semibold"
+                  disabled={submitting || isLoading}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {isLoading
+                    ? "Loading schemes..."
+                    : submitting
+                      ? "Saving your profile..."
+                      : "Save Profile & Register"}
+                </Button>
+              )}
+            </div>
+
+            {submitted && (
+              <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-3.5">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-forest">
+                  <CheckCircle2 className="h-4 w-4" /> Registration complete
+                </p>
+                <p className="text-[10px] leading-relaxed text-slate-600">
+                  Your profile is saved to this account only. We found{" "}
+                  <span className="font-bold text-primary">{matches.length}</span> matching schemes.
+                </p>
                 <Button
                   type="button"
                   size="sm"
-                  className="w-full text-xs h-8 gap-1.5"
+                  className="h-8 w-full gap-1.5 bg-primary text-[10px] font-bold"
                   onClick={() =>
                     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
                   }
                 >
-                  View Recommended Schemes <ArrowRight className="h-3.5 w-3.5" />
+                  View recommended schemes <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
-                <Button asChild size="sm" variant="outline" className="w-full text-xs h-8 gap-1.5">
-                  <Link to="/assistant">
-                    Continue to Sahayak Assistant <ArrowRight className="h-3.5 w-3.5" />
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                No identity data is sold or shared with private vendors. Signed-in visitors see only
+                their own saved profile; guests always start blank.
+              </p>
+            </div>
+          </form>
+
+          {/* Results */}
+          <section ref={resultsRef} id="recommended-schemes" className="scroll-mt-28 space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-3">
+              <div>
+                <p className="sov-eyebrow">Step 03 · Matched entitlements</p>
+                <h2 className="mt-1 font-display text-2xl font-bold text-primary sm:text-3xl">
+                  {showRecommendations ? (
+                    <>
+                      <span className="sov-num text-saffron">{matches.length}</span> High-Impact
+                      Sovereign Entitlements
+                    </>
+                  ) : (
+                    "Your Scheme Matches"
+                  )}
+                </h2>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {showRecommendations
+                    ? `Showing ${visibleMatches.length} of ${matches.length} matching schemes out of ${data.length.toLocaleString("en-IN")} published.`
+                    : isLoading
+                      ? "Loading all published schemes so the matcher can run."
+                      : `Fill in your profile and press “Recalculate” to check all ${data.length.toLocaleString("en-IN")} published schemes.`}
+                </p>
+              </div>
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 rounded-md border-slate-300 text-[10px] font-bold"
+              >
+                <Link to="/assistant">
+                  <Sparkles className="h-3 w-3 text-saffron" /> Ask Sahayak
+                </Link>
+              </Button>
+            </div>
+
+            {showRecommendations && profileChips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                  Your profile
+                </span>
+                {profileChips.map((chip) => (
+                  <span key={chip} className="sov-chip">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {showRecommendations && matches.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <div className="flex items-start gap-2.5">
+                  <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-forest" />
+                  <div>
+                    <p className="text-[11px] font-bold text-forest">
+                      Direct entitlement match found
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">
+                      {matches.length} schemes align with your profile. Apply on each scheme&apos;s
+                      own official portal — NAGSI never collects applications or fees.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  asChild
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-md bg-primary text-[10px] font-bold"
+                >
+                  <Link to="/auth">
+                    Apply to all via DigiLocker (Demo) <ArrowRight className="h-3 w-3" />
                   </Link>
                 </Button>
               </div>
-            </div>
-          )}
-        </form>
+            )}
 
-        {/* Results Stream */}
-        <section ref={resultsRef} id="recommended-schemes" className="space-y-6 scroll-mt-24">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
-            <div>
-              <p className="text-lg font-bold text-foreground">
-                {showRecommendations ? (
-                  <>
-                    <span className="font-display text-3xl font-extrabold text-primary mr-2">
-                      {matches.length}
-                    </span>
-                    Recommended Schemes for You
-                  </>
-                ) : (
-                  "Your Scheme Matches"
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {showRecommendations
-                  ? `Showing ${visibleMatches.length} of ${matches.length} matching schemes (out of ${data.length} published).`
-                  : isLoading
-                    ? "Loading all published schemes so the matcher can run."
-                    : `Fill in your profile and press “Analyze My Eligibility” to check all ${data.length} published schemes.`}
-              </p>
-              {showRecommendations && profileChips.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Your profile:
-                  </span>
-                  {profileChips.map((chip) => (
-                    <span
-                      key={chip}
-                      className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
-                    >
-                      {chip}
-                    </span>
+            {isLoading ? (
+              <div className="rounded-xl border border-dashed bg-white p-10 text-center">
+                <p className="text-sm font-semibold text-primary">Loading all published schemes...</p>
+                <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
+                  The eligibility matcher will be ready in a moment.
+                </p>
+              </div>
+            ) : isError ? (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+                <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+                <h3 className="mt-3 text-base font-semibold">Could not load scheme data</h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
+                  Check the Supabase connection and try again.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={() => refetch()} className="mt-3">
+                  Retry
+                </Button>
+              </div>
+            ) : !showRecommendations ? (
+              <div className="rounded-xl border border-dashed bg-white p-10 text-center">
+                <SearchCheck className="mx-auto h-8 w-8 text-primary" />
+                <h3 className="mt-3 text-base font-semibold">Your matches will appear here</h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                  Enter age, gender, income, category, occupation, residence, BPL and disability
+                  status, then run the analysis. Nothing is saved unless you register.
+                </p>
+                <Button type="button" onClick={analyze} className="mt-3 h-9 gap-1.5 bg-saffron text-xs font-bold text-white hover:bg-saffron-deep">
+                  <SearchCheck className="h-3.5 w-3.5" /> Analyze My Eligibility
+                </Button>
+              </div>
+            ) : matches.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-white p-10 text-center">
+                <AlertCircle className="mx-auto h-8 w-8 text-slate-400" />
+                <h3 className="mt-3 text-base font-semibold">No schemes matched your conditions</h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                  Try relaxing your income, category, occupation, or residence selections and
+                  analyze again.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={resetProfile} className="mt-3">
+                  Reset profile
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3">
+                  {visibleMatches.map(({ s }) => (
+                    <article key={s.id} className="sov-card overflow-hidden">
+                      <div className="h-[3px] bg-forest" />
+                      <div className="p-4 sm:p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="sov-chip sov-chip-blue">
+                              {s.level === "central" ? "Central Govt" : "State Govt"}
+                            </span>
+                            <span className="sov-chip">{s.sector}</span>
+                            <span className="sov-chip sov-chip-green">
+                              <BadgeCheck className="h-2.5 w-2.5" /> Matched
+                            </span>
+                            {s.is_demo && (
+                              <span className="sov-chip sov-chip-red">Demo entry</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold text-forest">Verified route</span>
+                        </div>
+
+                        <h3 className="mt-2.5 font-display text-xl font-bold leading-snug text-primary">
+                          <Link to="/schemes/$slug" params={{ slug: s.slug }} className="hover:text-saffron">
+                            {s.title}
+                          </Link>
+                        </h3>
+                        <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-slate-600">
+                          {s.summary}
+                        </p>
+
+                        <dl className="mt-3 grid gap-2 border-y py-2.5 text-[10px] sm:grid-cols-3">
+                          <div>
+                            <dt className="font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              Ministry
+                            </dt>
+                            <dd className="mt-0.5 line-clamp-1 font-semibold text-primary">
+                              {s.sector === "Cross-sector" ? "Multiple departments" : s.sector}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              Residence
+                            </dt>
+                            <dd className="mt-0.5 font-semibold capitalize text-primary">
+                              {s.residence === "any" || !s.residence ? "Rural & urban" : s.residence}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              Age / income rule
+                            </dt>
+                            <dd className="mt-0.5 font-semibold text-primary">
+                              {s.min_age != null || s.max_age != null
+                                ? `${s.min_age ?? 0}–${s.max_age ?? "any"} yrs`
+                                : "No age limit"}
+                              {s.max_annual_income != null
+                                ? ` · ≤ ₹${s.max_annual_income.toLocaleString("en-IN")}`
+                                : ""}
+                            </dd>
+                          </div>
+                        </dl>
+
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                          <Link
+                            to="/schemes/$slug"
+                            params={{ slug: s.slug }}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-primary"
+                          >
+                            <FileCheck2 className="h-3 w-3" /> View statutory criteria
+                          </Link>
+                          <Link
+                            to="/schemes/$slug"
+                            params={{ slug: s.slug }}
+                            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-[#17395f]"
+                          >
+                            Claim Entitlement <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
                   ))}
                 </div>
-              )}
-              {showRecommendations && (
-                <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
-                  Income is compared only where a scheme stores a numeric cap. Always check the
-                  written eligibility on each scheme page.
-                </p>
-              )}
-            </div>
 
-            <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs h-8">
-              <Link to="/assistant">
-                <Sparkles className="h-3.5 w-3.5 text-saffron" />
-                Ask Sahayak to explain
-              </Link>
-            </Button>
-          </div>
-
-          {isLoading ? (
-            <div className="rounded-2xl border border-dashed bg-card/40 p-10 text-center space-y-2">
-              <p className="text-sm font-semibold text-foreground">Loading all published schemes...</p>
-              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
-                The eligibility matcher will be ready in a moment.
-              </p>
-            </div>
-          ) : isError ? (
-            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-10 text-center space-y-3">
-              <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
-              <h3 className="text-base font-semibold">Could not load scheme data</h3>
-              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
-                Check the Supabase connection and try again.
-              </p>
-              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-                Retry
-              </Button>
-            </div>
-          ) : !showRecommendations ? (
-            <div className="rounded-2xl border border-dashed bg-card/40 p-10 text-center space-y-3">
-              <SearchCheck className="mx-auto h-8 w-8 text-primary" />
-              <h3 className="text-base font-semibold">Your matches will appear here</h3>
-              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
-                Enter age, gender, income, category, occupation, residence, BPL and disability
-                status, then run the analysis. Nothing is saved unless you register.
-              </p>
-              <Button type="button" onClick={analyze} className="gap-1.5 text-xs">
-                <SearchCheck className="h-3.5 w-3.5" />
-                Analyze My Eligibility
-              </Button>
-            </div>
-          ) : matches.length === 0 ? (
-            <div className="rounded-2xl border border-dashed p-12 text-center space-y-3 bg-card/40">
-              <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground" />
-              <h3 className="text-base font-semibold">No schemes matched your conditions</h3>
-              <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground">
-                Try relaxing your income, category, occupation, or residence selections and
-                analyze again.
-              </p>
-              <Button type="button" variant="outline" size="sm" onClick={resetProfile}>
-                Reset profile
-              </Button>
-            </div>
-          ) : (
-            <>
-              {/* Matches Grid — rendered in batches so the page stays responsive. */}
-              <div className="grid gap-4 md:grid-cols-2">
-                {visibleMatches.map(({ s }) => (
-                  <div
-                    key={s.id}
-                    className="group flex flex-col justify-between rounded-xl border bg-card p-5 shadow-card hover:shadow-md transition-all duration-150 hover:-translate-y-0.5"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 capitalize">
-                          {s.level} Govt · {s.sector}
-                        </span>
-                        {s.is_demo && (
-                          <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
-                            Demo
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
-                        <Link to="/schemes/$slug" params={{ slug: s.slug }}>
-                          {s.title}
-                        </Link>
-                      </h3>
-
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {s.summary}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t flex items-center justify-between">
-                      <div className="flex flex-wrap gap-1">
-                        {s.beneficiary_types?.slice(0, 2).map((b) => (
-                          <span
-                            key={b}
-                            className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground capitalize"
-                          >
-                            {b}
-                          </span>
-                        ))}
-                      </div>
-
-                      <Link
-                        to="/schemes/$slug"
-                        params={{ slug: s.slug }}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:text-accent transition-colors"
-                      >
-                        <span>View Scheme</span>
-                        <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {remainingMatches > 0 && (
-                <div className="flex flex-col items-center gap-1.5 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => setVisibleCount((count) => count + 24)}
-                  >
-                    Show 24 more schemes
-                  </Button>
-                  <p className="text-[11px] text-muted-foreground">
-                    {remainingMatches.toLocaleString("en-IN")} more matching schemes
-                  </p>
-                </div>
-              )}
-
-              {/* Non-matches are capped so they do not create thousands of DOM nodes. */}
-              {nonMatches.length > 0 && (
-                <div className="rounded-xl border bg-card/60 p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">
-                      Why {nonMatches.length.toLocaleString("en-IN")} schemes did not match
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    These schemes have specific criteria (such as income limits or required
-                    categories) that did not align with your current selections:
-                  </p>
-                  <div className="divide-y max-h-72 overflow-y-auto pr-2 text-xs">
-                    {nonMatches.slice(0, 20).map(({ s, reasons }) => (
-                      <div
-                        key={s.id}
-                        className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1"
-                      >
-                        <span className="font-semibold text-foreground">{s.title}</span>
-                        <span className="text-muted-foreground italic sm:text-right">
-                          {reasons.join(" · ")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {nonMatches.length > 20 && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Showing the first 20 of {nonMatches.length.toLocaleString("en-IN")} schemes
-                      that did not match.
+                {remainingMatches > 0 && (
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-md border-slate-300 text-xs"
+                      onClick={() => setVisibleCount((count) => count + 24)}
+                    >
+                      Show 24 more schemes
+                    </Button>
+                    <p className="text-[10px] text-slate-500">
+                      {remainingMatches.toLocaleString("en-IN")} more matching schemes
                     </p>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      </div>
+                  </div>
+                )}
+
+                {nonMatches.length > 0 && (
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-slate-400" />
+                      <h3 className="text-sm font-semibold text-primary">
+                        Why {nonMatches.length.toLocaleString("en-IN")} schemes did not match
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      These schemes have specific criteria that did not align with your current
+                      selections:
+                    </p>
+                    <div className="max-h-72 divide-y overflow-y-auto pr-2 text-[11px]">
+                      {nonMatches.slice(0, 20).map(({ s, reasons }) => (
+                        <div
+                          key={s.id}
+                          className="flex flex-col justify-between gap-1 py-2 sm:flex-row sm:items-center"
+                        >
+                          <span className="font-semibold text-primary">{s.title}</span>
+                          <span className="italic text-slate-500 sm:text-right">
+                            {reasons.join(" · ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {nonMatches.length > 20 && (
+                      <p className="text-[10px] text-slate-500">
+                        Showing the first 20 of {nonMatches.length.toLocaleString("en-IN")} schemes
+                        that did not match.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {showRecommendations && (
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                Income is compared only where a scheme stores a numeric cap. Always check the
+                written eligibility and the official notification before applying.
+              </p>
+            )}
+          </section>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Bottom CTA                                                       */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto mt-10 max-w-7xl px-4 sm:px-6">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#0a192f] via-[#0f2544] to-[#17395f] p-6 text-white shadow-overlay sm:p-8">
+          <div className="relative grid gap-6 lg:grid-cols-[1.4fr_0.6fr] lg:items-center">
+            <div>
+              <p className="sov-eyebrow sov-eyebrow-light">Single-window statutory filing</p>
+              <h2 className="mt-2 max-w-2xl font-display text-2xl font-bold sm:text-[2rem]">
+                Ready to Claim Your Entitlements with Zero Document Duplication?
+              </h2>
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/60">
+                Your profile parameters generate a preview application summary for this prototype.
+                In a live deployment, Aadhaar-based DigiLocker consent would let you submit the same
+                verified details to multiple departments.
+              </p>
+              <p className="mt-2 text-[9px] uppercase tracking-[0.12em] text-white/35">
+                Demo only · no Aadhaar or identity data is collected by this prototype
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                asChild
+                className="h-10 gap-1.5 rounded-md bg-saffron text-xs font-bold text-white hover:bg-saffron-deep"
+              >
+                <Link to="/auth">
+                  Proceed with DigiLocker Auth <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.print()}
+                className="h-10 gap-1.5 rounded-md border-white/25 bg-transparent text-xs font-bold text-white hover:bg-white/10 hover:text-white"
+              >
+                <Download className="h-3.5 w-3.5" /> Export Audit PDF
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

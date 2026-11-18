@@ -51,10 +51,11 @@ export type SchemeDirectoryEntry = Pick<
   | "beneficiary_types"
   | "is_demo"
   | "category"
+  | "official_url"
 >;
 
 const SCHEME_DIRECTORY_SELECT =
-  "id,slug,title,ministry,level,state_name,sector,summary,benefits,beneficiary_types,is_demo,category";
+  "id,slug,title,ministry,level,state_name,sector,summary,benefits,beneficiary_types,is_demo,category,official_url";
 
 // The Supabase REST API caps every response at 1000 rows, so page until exhausted.
 async function fetchSchemeDirectory(): Promise<SchemeDirectoryEntry[]> {
