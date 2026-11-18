@@ -1,19 +1,15 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SovereignChakra } from "@/components/SovereignChakra";
 import {
   ArrowRight,
   BadgeCheck,
   BookOpen,
-  Briefcase,
   Building2,
   CheckCircle2,
   Cpu,
   Database,
   Factory,
-  FileCheck2,
   GraduationCap,
   Landmark,
   Layers,
@@ -21,7 +17,6 @@ import {
   Network,
   Rocket,
   Scale,
-  Search,
   ShieldCheck,
   Sparkles,
   Sprout,
@@ -48,8 +43,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
-
-const POPULAR_QUERIES = ["GPU Compute", "Student Fellowships", "MSME Grants", "DPDP Act"];
 
 const TRUST_ITEMS = [
   { icon: Scale, title: "Sovereign Governance", note: "Statutory oversight" },
@@ -220,16 +213,6 @@ const LOCAL_SERVICES = [
 ];
 
 function Index() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const navigate = useNavigate();
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate({ to: "/schemes", search: { q: searchQuery.trim() } });
-    }
-  };
-
   return (
     <div className="flex flex-col">
       {/* ---------------------------------------------------------------- */}
@@ -243,150 +226,65 @@ function Index() {
               सत्यमेव जयते · Government of India (Demo)
             </div>
 
-            <h1 className="mt-5 max-w-3xl text-[2.1rem] font-bold leading-[1.12] text-white sm:text-5xl lg:text-[3.25rem]">
+            <h1 className="mt-5 max-w-3xl text-[2.1rem] font-bold leading-[1.1] text-white sm:text-5xl lg:text-[3.5rem]">
               National AI Governance &amp;
               <br className="hidden sm:block" /> Schemes Intelligence Portal
             </h1>
 
-            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
-              A unified Indian digital public platform connecting responsible AI oversight for
-              ministries with transparent, verified scheme discovery for citizens, students,
-              startups and MSMEs.
+            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/70">
+              The country&apos;s single-window gateway uniting the IndiaAI Mission, the DPDP Act
+              2023 compliance framework and direct benefit delivery — auditing responsible AI
+              adoption across ministries while connecting citizens, students, startups and MSMEs to
+              3,540 verified schemes.
             </p>
 
-            <form
-              onSubmit={handleSearchSubmit}
-              className="mt-7 flex max-w-2xl flex-col gap-2 sm:flex-row"
-            >
-              <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search schemes, subsidies, fellowships, compute…"
-                  className="h-11 rounded-md border-0 bg-white pl-10 text-sm text-slate-900 shadow-lg placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#ffb59a]"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="h-11 gap-1.5 rounded-md bg-saffron px-5 text-sm font-bold text-white shadow-md hover:bg-saffron-deep"
-              >
-                Search
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </form>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
-                Popular
-              </span>
-              {POPULAR_QUERIES.map((term) => (
-                <Link
-                  key={term}
-                  to="/schemes"
-                  search={{ q: term }}
-                  className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/70 transition-colors hover:border-white/35 hover:text-white"
-                >
-                  {term}
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-7 flex flex-wrap gap-2.5">
+            <div className="mt-8 flex flex-wrap gap-2.5">
               <Button
                 asChild
                 className="h-10 gap-1.5 rounded-md bg-saffron px-4 text-xs font-bold text-white shadow-md hover:bg-saffron-deep"
               >
                 <Link to="/schemes">
-                  Explore Scheme Directory
+                  Explore Schemes &amp; Subsidies
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
               <Button
                 asChild
-                variant="outline"
-                className="h-10 gap-1.5 rounded-md border-white/25 bg-white/5 px-4 text-xs font-bold text-white hover:bg-white/10 hover:text-white"
+                className="h-10 gap-1.5 rounded-md bg-forest px-4 text-xs font-bold text-white shadow-md hover:bg-[#035a2f]"
               >
-                <Link to="/assistant">
-                  <Sparkles className="h-3.5 w-3.5 text-saffron" />
-                  Ask Sahayak AI
+                <Link to="/frameworks">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Model Trust Seal Certification
                 </Link>
               </Button>
               <Button
                 asChild
                 variant="outline"
-                className="h-10 gap-1.5 rounded-md border-white/25 bg-transparent px-4 text-xs font-bold text-white/80 hover:bg-white/10 hover:text-white"
+                className="h-10 gap-1.5 rounded-md border-white/25 bg-transparent px-4 text-xs font-bold text-white/85 hover:bg-white/10 hover:text-white"
               >
-                <Link to="/gov">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Gov Portal
+                <Link to="/assistant">
+                  <Sparkles className="h-3.5 w-3.5 text-[#ffb59a]" />
+                  Ask NAGSI Sahayak
                 </Link>
               </Button>
             </div>
-
-            <dl className="mt-9 grid max-w-2xl grid-cols-2 gap-x-8 gap-y-4 border-t border-white/10 pt-6 sm:grid-cols-4">
-              {[
-                ["3,540", "Verified schemes"],
-                ["1,898", "Official portals"],
-                ["8", "Risk dimensions"],
-                ["36", "States & UTs"],
-              ].map(([value, label]) => (
-                <div key={label}>
-                  <dt className="sov-num font-display text-2xl font-bold text-white">{value}</dt>
-                  <dd className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45">
-                    {label}
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </div>
 
-          {/* Sovereign stack panel */}
-          <div className="relative hidden lg:block">
-            <SovereignChakra className="absolute -right-16 -top-10 h-[420px] w-[420px] text-[#c8a24a]" />
-            <div className="relative mt-10 rounded-xl border border-white/15 bg-white/[0.06] p-5 backdrop-blur">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#ffb59a]">
-                    Sovereign AI Stack
-                  </p>
-                  <p className="mt-1 font-display text-lg font-semibold text-white">
-                    One accountable layer
-                  </p>
-                </div>
-                <Bay />
-              </div>
-              <ul className="mt-4 space-y-3">
-                {[
-                  [Cpu, "Compute", "10,000+ GPUs mapped"],
-                  [Database, "Datasets", "AIKosh public corpus"],
-                  [Layers, "Models", "Registered & audited"],
-                  [Users, "Citizens", "Verified entitlements"],
-                ].map(([Icon, label, note]) => {
-                  const TileIcon = Icon as typeof Cpu;
-                  return (
-                    <li key={label as string} className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-[#ffb59a]">
-                        <TileIcon className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-white">{label as string}</p>
-                        <p className="truncate text-[10px] text-white/50">{note as string}</p>
-                      </div>
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="mt-4 rounded-md border border-white/10 bg-[#0a192f]/60 p-2.5">
-                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/40">
-                  Statutory basis
-                </p>
-                <p className="mt-1 text-[10px] leading-relaxed text-white/60">
-                  DPDP Act 2023 · India AI Governance Guidelines 2025 · NIST AI RMF alignment.
-                </p>
-              </div>
-            </div>
+          {/* National emblem */}
+          <div className="relative hidden flex-col items-center justify-center lg:flex lg:px-6">
+            <SovereignChakra className="absolute h-[420px] w-[420px] text-[#c8a24a]/15" />
+            <div className="absolute h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(200,162,74,0.22),transparent_66%)] blur-2xl" />
+            <img
+              src="/brand/emblem-stone.png"
+              alt="Lion Capital of Ashoka, the State Emblem of India"
+              className="relative h-[310px] w-auto opacity-55 drop-shadow-[0_0_40px_rgba(200,162,74,0.22)] xl:h-[350px]"
+            />
+            <p
+              lang="hi"
+              className="relative mt-5 text-center text-2xl font-semibold tracking-wide text-white/75 sm:text-[1.7rem]"
+            >
+              सत्यमेव जयते
+            </p>
           </div>
         </div>
       </section>
@@ -987,14 +885,5 @@ function Index() {
         </div>
       </section>
     </div>
-  );
-}
-
-function Bay() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-300">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-      Live
-    </span>
   );
 }
